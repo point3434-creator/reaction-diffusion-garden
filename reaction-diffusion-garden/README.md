@@ -1,0 +1,73 @@
+# Reaction–diffusion garden
+
+Three physics simulations in one dish, painted with a finger, lit by thirteen materials, and driven by sound.
+
+It started as a toy for Turing patterns: two chemicals, two rules, every pattern on a leopard. It grew a heart, a Schrödinger equation, a studio's worth of surface materials, five original beats, a phone build, and a glass panel to hold it all. Everything runs on the device, in one HTML file, with no servers, no accounts, and nothing sent anywhere.
+
+## What's in the dish
+
+**Garden** is the Gray–Scott reaction–diffusion model. Chemical A feeds in, chemical B washes out, and the one reaction A + 2B → 3B makes B wherever B already is. Because A diffuses twice as fast as B, blobs of B starve their neighbours, and that short-range growth with long-range inhibition is the whole recipe for spots, stripes, coral, fingerprints and dividing cells. Eight presets sit along the curve where the chemistry has a second steady state; drag the map to explore it. Every stroke founds a lineage: B carries the colour of the stroke it descends from, so where lineages meet, you can see who outgrew whom. A photo can seed the dish, its dark places becoming B in the photo's own colours.
+
+**Heart** is Barkley's model of excitable tissue. A cell fires when its neighbours push it over a threshold, then it must rest. A pacemaker gives you the rings of sinus rhythm; a wave broken by scar tissue or by a second stimulus in the first one's wake curls into a spiral that never stops, which is re-entry, the mechanism of flutter and fibrillation. Defibrillate fires every cell at once so every cell rests at once, and the spirals have nothing left to run on. A trace shows the whole dish's voltage like an ECG. The wavefront carries the colour of the stimulus that started it.
+
+**Quantum** is the two-dimensional time-dependent Schrödinger equation, stepped with Visscher's staggered real/imaginary scheme so the total probability stays put. Drag to throw a packet: its magnitude is the hill, its phase is the colour, and the stripes run backwards through it because the phase moves at half the packet's speed. Paint walls, raise them with the barrier slider, and run the presets: Double slit (with a detector trace along the right edge), Tunnel, Trap (a coherent state orbiting in a bowl without spreading), Box and Free.
+
+**Materials.** One height map is lit thirteen ways: Glass, Quicksilver, Velvet, Wax, Neon, Fire, Ice, Electricity, Contour, Iridescent, Prism, Watercolour and Letterpress. Fire, ice, electricity, contour and the iridescent film are animated; the prism bends blue more than red through graph paper under the dish. On a phone, tilting it moves the lights.
+
+**Sound.** A song file, the microphone, or a shared screen's audio (on a computer, which is how you listen to Spotify) drives the dish: kicks plant seeds, pace the heart or throw particles, pulse the surface and turn the colours; snares clear a patch in the garden; loudness sets the pace; the brightness of the sound picks the colour of new seeds. Five beats are built in, each an original loop in homage to one producer's feel, synthesized note by note as it plays: Drunk swing, G-funk, Chop & scratch, Shaolin dust and Soul horns. Nothing is sampled.
+
+## Layout
+
+```
+web/index.html      the whole app, one file; open it in a browser
+src/                the pieces worth editing on their own, spliced into the page by tools/splice.py
+  frag.glsl           the fragment shader: the height map, the lights, every material
+  heart.js            the excitable-tissue model
+  quantum.js          the Schrödinger model
+  beats.js            the synth engine and the five beats
+  style.css           the stylesheet
+  panel.html          the control panel's markup, for reference
+android/            the Android app: a WebView serving the page from a private https origin
+tools/              calibration scripts for the models, an offline renderer for the beats, screenshots
+```
+
+The simulations run on the CPU in plain JavaScript on a grid of a few hundred cells a side; the renderer is WebGL 2, with a flat 2D fallback. There are no dependencies at runtime.
+
+## Running it
+
+Open `web/index.html`. Everything works from a local file except the microphone and screen sharing, which browsers allow only on `https` pages and on files opened directly in Chrome.
+
+To edit a model, the shader or the beats, change the file in `src/` and run `python3 tools/splice.py` to put it back into the page. `python3 tools/splice.py --check` tells you whether the page and `src/` agree.
+
+## The Android app
+
+`android/` holds a tiny app: one activity, one WebView, the page served out of the app's assets as if it came from `https://garden.app/` so the browser treats it as secure and lets it use the microphone. It asks for the mic the first time you tap Listen to the room, follows the phone's light or dark setting, keeps the screen awake, goes edge to edge in full-screen mode, and does not reload the dish when you rotate the phone.
+
+It builds without Gradle, with the classic tools:
+
+```
+sudo apt install aapt apksigner zipalign dalvik-exchange android-sdk-platform-23 default-jdk-headless python3-pil
+KEYSTORE=/path/to/garden.keystore KEYSTORE_PASS=yourpassword ./android/build.sh
+```
+
+The result is `android/build/garden.apk`, about 120 KB. Android updates an app in place only when every build is signed with the same key, so keep the keystore outside the repository and point the build at it; without one the script makes a fresh key, which installs as a new app rather than an update.
+
+## Checking the physics
+
+```
+npm install
+node tools/calibrate-heart.js      wave speed and width, spiral period, whether a shock quiets fibrillation
+node tools/calibrate-quantum.js    packet speed and norm, double-slit fringes, tunnelling, the trap's orbit
+node tools/render-beats.js         renders each beat to tools/out/*.wav with levels
+node tools/screenshot.js quantum "Double slit" Contour dark
+```
+
+The heart runs at `a = 0.75, b = 0.06, ε = 0.02, dt = 0.05, D = 5` with a slowed recovery variable so waves are a few cells wide; a plane wave moves about 3.2 cells per time unit and a spiral turns every 9. The quantum dish uses `ħ = m = 1`, one cell per unit of length, `dt = 0.1`, and is stable for walls up to the barrier slider's maximum because `dt · (4 + V) < 2`.
+
+## Credits
+
+Alan Turing proposed reaction–diffusion as a mechanism for pattern formation in 1952; the Gray–Scott presets follow John Pearson's 1993 survey. The heart is Dwight Barkley's 1991 model. The quantum scheme is P. B. Visscher's from 1991. The page, the materials, the app and the beats were made in conversation with Claude.
+
+## License
+
+MIT. See `LICENSE`.

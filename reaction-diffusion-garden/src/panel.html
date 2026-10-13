@@ -1,0 +1,143 @@
+  <aside class="panel" id="panel" aria-label="Controls">
+    <button class="handle" id="handle" type="button" aria-label="Show or hide the controls"><span></span></button>
+    <header class="masthead">
+      <h1>Reaction–diffusion garden</h1>
+      <p class="lede" id="lede">Two chemicals, two rules, every pattern on a leopard. Paint on the dish, then watch what the rules do with it.</p>
+    </header>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab-btn" type="button" role="tab" data-tab="dish" aria-selected="true">Dish</button>
+      <button class="tab-btn" type="button" role="tab" data-tab="look" aria-selected="false">Look</button>
+      <button class="tab-btn" type="button" role="tab" data-tab="sound" aria-selected="false">Sound</button>
+      <button class="tab-btn" type="button" role="tab" data-tab="why" aria-selected="false">Why</button>
+    </nav>
+    <div class="tabpanes" id="tabpanes">
+
+      <section class="pane" data-pane="dish" role="tabpanel">
+        <div class="group">
+          <h3 class="eyebrow">Chemistry</h3>
+          <div class="seg" id="chem" role="group" aria-label="Chemistry">
+            <button class="chip" type="button" data-chem="garden" aria-pressed="true">Garden</button>
+            <button class="chip" type="button" data-chem="heart" aria-pressed="false">Heart</button>
+            <button class="chip" type="button" data-chem="quantum" aria-pressed="false">Quantum</button>
+          </div>
+        </div>
+        <div class="group">
+          <h3 class="eyebrow">Presets</h3>
+          <div class="presets" id="presets" role="group" aria-label="Presets"></div>
+        </div>
+        <div class="tune">
+          <div class="mapwrap">
+            <svg class="map" id="map" viewBox="0 0 100 100" role="img" aria-label="Map of feed and kill rates. Drag to explore; the sliders do the same thing.">
+              <rect class="bg" x="0.5" y="0.5" width="99" height="99" rx="10"></rect>
+              <path class="curve" id="curve" d=""></path>
+              <g id="dots"></g>
+              <circle class="anchor" id="anchor" r="2.4" cx="50" cy="50"></circle>
+              <circle class="here" id="here" r="4.5" cx="50" cy="50"></circle>
+            </svg>
+            <svg class="map ecg" id="ecg" viewBox="0 0 100 100" role="img" aria-label="The whole dish's voltage over time, like an ECG." hidden>
+              <rect class="bg" x="0.5" y="0.5" width="99" height="99" rx="10"></rect>
+              <polyline class="trace" id="ecgLine" points=""></polyline>
+            </svg>
+            <p class="mapcap"><span id="capMap">Feed up, kill across. The presets live along the arc.</span><span id="capEcg" hidden>The whole dish's voltage, beat by beat.</span><span id="capScreen" hidden>What a detector along the right edge would see.</span></p>
+          </div>
+          <div class="sliders">
+            <label><span id="lab1">feed</span> <input id="feed" type="range" min="0.005" max="0.090" step="0.0001"> <output id="feedOut">0.0000</output></label>
+            <label><span id="lab2">kill</span> <input id="kill" type="range" min="0.040" max="0.072" step="0.0001"> <output id="killOut">0.0000</output></label>
+            <label><span>speed</span> <input id="speed" type="range" min="1" max="24" step="1"> <output id="speedOut">8</output></label>
+            <label id="bpmWrap" hidden><span>pace</span> <input id="bpm" type="range" min="30" max="180" step="1" value="60"> <output id="bpmOut">60</output></label>
+          </div>
+        </div>
+        <div class="group">
+          <div class="actions">
+            <button class="act" id="pause" type="button" aria-pressed="false">
+              <svg class="ico-pause" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5.5 3v10M10.5 3v10"/></svg>
+              <svg class="ico-play" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 2.8v10.4L13 8z"/></svg>
+              <span id="pauseLabel">Pause</span>
+            </button>
+            <button class="act" id="erase" type="button" aria-pressed="false">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13.5l2.6-.5L13 5.6 10.4 3 3 10.4zM8.8 4.6l2.6 2.6"/></svg>
+              <span id="eraseLabel">Erase</span>
+            </button>
+            <button class="act" id="clear" type="button">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.7 8.5h4.6l.7-8.5"/></svg>
+              Clear
+            </button>
+            <button class="act" id="seed" type="button">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 2v3M8 11v3M2 8h3M11 8h3M3.8 3.8l2 2M10.2 10.2l2 2M12.2 3.8l-2 2M5.8 10.2l-2 2"/></svg>
+              <span id="seedLabel">Scatter seeds</span>
+            </button>
+            <button class="act" id="photoBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4.5" width="12" height="9" rx="2"/><circle cx="8" cy="9" r="2.4"/><path d="M5.8 4.5L7 2.5h2l1.2 2"/></svg>
+              Seed from a photo
+            </button>
+            <button class="act" id="paceBtn" type="button" aria-pressed="false" hidden>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M8 13.5S2.5 10.2 2.5 6.4A2.9 2.9 0 0 1 8 5a2.9 2.9 0 0 1 5.5 1.4c0 3.8-5.5 7.1-5.5 7.1z"/></svg>
+              Pace
+            </button>
+            <button class="act" id="fullBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg>
+              Full screen
+            </button>
+            <input type="file" id="photo" accept="image/*" hidden>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" data-pane="look" role="tabpanel" hidden>
+        <div class="group" id="materials">
+          <h3 class="eyebrow">Made of</h3>
+          <div class="chips" id="mats" role="group" aria-label="Material"></div>
+        </div>
+        <div class="group">
+          <h3 class="eyebrow">Colours</h3>
+          <div class="discs" id="discs" role="group" aria-label="Colours"></div>
+        </div>
+        <div class="group" id="swatches">
+          <h3 class="eyebrow">Paint with</h3>
+          <div class="swatchrow">
+            <div id="hues"></div>
+            <button class="chip" id="anyHue" type="button" aria-pressed="true">Any colour</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" data-pane="sound" role="tabpanel" hidden>
+        <div class="group">
+          <h3 class="eyebrow">Source</h3>
+          <div class="music" id="music">
+            <button class="act" id="songBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 12V4l7-2v8"/><circle cx="4" cy="12" r="2"/><circle cx="11" cy="10" r="2"/></svg>
+              Play a song
+            </button>
+            <button class="act" id="spotBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="8" rx="1.5"/><path d="M6 14h4M8 11v3"/></svg>
+              Listen to Spotify
+            </button>
+            <button class="act" id="micBtn" type="button">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="4" height="7" rx="2"/><path d="M4 8a4 4 0 0 0 8 0M8 12v2M6 14h4"/></svg>
+              Listen to the room
+            </button>
+            <button class="act" id="songPlay" type="button" hidden aria-pressed="false">Play</button>
+            <button class="act" id="musicOff" type="button" hidden>
+              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>
+              Stop
+            </button>
+            <span class="meter" aria-hidden="true"><i id="level"></i></span>
+            <input type="file" id="file" accept="audio/*" hidden>
+          </div>
+          <p class="track" id="track" hidden></p>
+          <p class="note"><span id="spotCap">Listen to Spotify shares your screen's sound: pick the Spotify tab or window and tick share audio.</span><span id="roomCap" hidden>Playing Spotify on this phone? Listen to the room hears it through the microphone.</span> Audio stays on your device.</p>
+        </div>
+        <div class="group" id="beats">
+          <h3 class="eyebrow">Beats</h3>
+          <div class="chips" id="beatChips" role="group" aria-label="Beats"></div>
+          <p class="note">Five original loops, synthesized as they play, each after one producer's feel. Nothing is sampled.</p>
+        </div>
+      </section>
+
+      <section class="pane why" data-pane="why" id="why" role="tabpanel" hidden>
+{{WHY}}
+      </section>
+
+    </div>
+  </aside>
