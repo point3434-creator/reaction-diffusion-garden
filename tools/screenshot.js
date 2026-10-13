@@ -16,7 +16,7 @@ fs.mkdirSync(OUT, { recursive: true });
   page.on('pageerror', (e) => console.log('pageerror', e.message));
   await page.goto('file://' + path.resolve(__dirname, '..', 'web', 'index.html'));
   await page.waitForTimeout(500);
-  const chip = { garden: 'Garden', heart: 'Heart', quantum: 'Quantum' }[chem];
+  const chip = { garden: 'Garden', heart: 'Heart', quantum: 'Quantum', mould: 'Mould' }[chem];
   if (chip && chip !== 'Garden') await page.getByRole('button', { name: chip, exact: true }).click();
   await page.getByRole('button', { name: preset, exact: true }).click();
   await page.getByRole('tab', { name: 'Look' }).click();
