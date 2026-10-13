@@ -406,10 +406,17 @@ void main() {
       // scar tissue: dead, rough and dull
       float rough = 0.7 + 0.3 * vnoise(gl_FragCoord.xy * 0.35);
       bg = mix(bg, mix(uBg * 2.2 + 0.05, uBg * 0.72, lt) * rough, scar);
-    } else {
+    } else if (uHeart < 2.5) {
       // a smooth potential shows as a bowl: deeper where the particle would rather be
       float pot = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);
       bg = mix(bg, mix(bg * 0.45 + vec3(0.02, 0.03, 0.05), bg * 0.8, lt), pot);
+      // walls: hard, smooth, pale
+      bg = mix(bg, mix(uBg * 2.6 + 0.12, uBg * 0.62, lt), scar);
+    } else {
+      // food: a pool of what the mould eats, in its own colour, deeper while there is more of it
+      float fd = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);
+      vec3 pool = mix(bg * 0.5 + tintP * 0.22, bg * mix(vec3(1.0), tintP, 0.5) * 0.86, lt);
+      bg = mix(bg, pool, fd);
       // walls: hard, smooth, pale
       bg = mix(bg, mix(uBg * 2.6 + 0.12, uBg * 0.62, lt), scar);
     }

@@ -1,13 +1,14 @@
 {
   "name": "reaction-diffusion-garden",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
-  "description": "Three physics simulations in one dish: Turing patterns, excitable heart tissue and the Schrödinger equation, painted, lit and driven by sound.",
+  "description": "Three physics simulations and a slime mould in one dish: Turing patterns, excitable heart tissue, the Schrödinger equation and Physarum, painted, lit and driven by sound.",
   "scripts": {
     "splice": "python3 tools/splice.py",
     "check": "python3 tools/splice.py --check",
     "calibrate:heart": "node tools/calibrate-heart.js",
     "calibrate:quantum": "node tools/calibrate-quantum.js",
+    "calibrate:mould": "node tools/calibrate-mould.js",
     "beats": "node tools/render-beats.js",
     "screenshot": "node tools/screenshot.js"
   },

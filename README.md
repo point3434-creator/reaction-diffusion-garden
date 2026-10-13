@@ -1,8 +1,8 @@
 # Reaction–diffusion garden
 
-Three physics simulations in one dish, painted with a finger, lit by thirteen materials, and driven by sound.
+Three physics simulations and a slime mould in one dish, painted with a finger, lit by thirteen materials, and driven by sound.
 
-It started as a toy for Turing patterns: two chemicals, two rules, every pattern on a leopard. It grew a heart, a Schrödinger equation, a studio's worth of surface materials, five original beats, a phone build, and a glass panel to hold it all. Everything runs on the device, in one HTML file, with no servers, no accounts, and nothing sent anywhere.
+It started as a toy for Turing patterns: two chemicals, two rules, every pattern on a leopard. It grew a heart, a Schrödinger equation, a slime mould, a studio's worth of surface materials, five original beats, a phone build, and a glass panel to hold it all. Everything runs on the device, in one HTML file, with no servers, no accounts, and nothing sent anywhere.
 
 ## What's in the dish
 
@@ -11,6 +11,8 @@ It started as a toy for Turing patterns: two chemicals, two rules, every pattern
 **Heart** is Barkley's model of excitable tissue. A cell fires when its neighbours push it over a threshold, then it must rest. A pacemaker gives you the rings of sinus rhythm; a wave broken by scar tissue or by a second stimulus in the first one's wake curls into a spiral that never stops, which is re-entry, the mechanism of flutter and fibrillation. Defibrillate fires every cell at once so every cell rests at once, and the spirals have nothing left to run on. A trace shows the whole dish's voltage like an ECG. The wavefront carries the colour of the stimulus that started it.
 
 **Quantum** is the two-dimensional time-dependent Schrödinger equation, stepped with Visscher's staggered real/imaginary scheme so the total probability stays put. Drag to throw a packet: its magnitude is the hill, its phase is the colour, and the stripes run backwards through it because the phase moves at half the packet's speed. Paint walls, raise them with the barrier slider, and run the presets: Double slit (with a detector trace along the right edge), Tunnel, Trap (a coherent state orbiting in a bowl without spreading), Box and Free.
+
+**Mould** is Jeff Jones's agent model of *Physarum polycephalum*, the slime mould that grew the Tokyo rail map. Thousands of agents each look ahead at three points, turn toward the strongest trail, step, and lay trail where they land; the trail blurs and fades every step, so veins are the paths enough agents keep agreeing on. It is the garden's recipe turned inside out: short range, go where the others went; long range, forget. Paint food in a colour and the mould finds it by its scent, and the veins that feed on it take that colour; paint walls and it finds the way round; seed from a photo and the network grows into the picture in the picture's own hues. Reach sets how far the agents sense, which is the mesh size; fade sets how fast trail goes. Presets: Forage, Railway (a colony on the station and food where the towns are), Veins, Hyphae and Cells.
 
 **Materials.** One height map is lit thirteen ways: Glass, Quicksilver, Velvet, Wax, Neon, Fire, Ice, Electricity, Contour, Iridescent, Prism, Watercolour and Letterpress. Fire, ice, electricity, contour and the iridescent film are animated; the prism bends blue more than red through graph paper under the dish. On a phone, tilting it moves the lights.
 
@@ -24,6 +26,7 @@ src/                the pieces worth editing on their own, spliced into the page
   frag.glsl           the fragment shader: the height map, the lights, every material
   heart.js            the excitable-tissue model
   quantum.js          the Schrödinger model
+  mould.js            the slime-mould model
   beats.js            the synth engine and the five beats
   style.css           the stylesheet
   panel.html          the control panel's markup, for reference
@@ -58,6 +61,7 @@ The result is `android/build/garden.apk`, about 120 KB. Android updates an app i
 npm install
 node tools/calibrate-heart.js      wave speed and width, spiral period, whether a shock quiets fibrillation
 node tools/calibrate-quantum.js    packet speed and norm, double-slit fringes, tunnelling, the trap's orbit
+node tools/calibrate-mould.js      trail laid, dish covered, pieces of network, food reached; draws each preset to tools/out
 node tools/render-beats.js         renders each beat to tools/out/*.wav with levels
 node tools/screenshot.js quantum "Double slit" Contour dark
 ```
@@ -66,7 +70,7 @@ The heart runs at `a = 0.75, b = 0.06, ε = 0.02, dt = 0.05, D = 5` with a slowe
 
 ## Credits
 
-Alan Turing proposed reaction–diffusion as a mechanism for pattern formation in 1952; the Gray–Scott presets follow John Pearson's 1993 survey. The heart is Dwight Barkley's 1991 model. The quantum scheme is P. B. Visscher's from 1991. The page, the materials, the app and the beats were made in conversation with Claude.
+Alan Turing proposed reaction–diffusion as a mechanism for pattern formation in 1952; the Gray–Scott presets follow John Pearson's 1993 survey. The heart is Dwight Barkley's 1991 model. The quantum scheme is P. B. Visscher's from 1991. The slime mould is Jeff Jones's 2010 model, and the Railway preset is after Tero, Nakagaki and colleagues' 2010 Tokyo experiment. The page, the materials, the app and the beats were made in conversation with Claude.
 
 ## License
 

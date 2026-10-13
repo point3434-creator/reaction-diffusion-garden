@@ -193,7 +193,7 @@
   .act.paused .ico-pause { display: none; }
 
   /* The chemistry switch */
-  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: 12px; background: var(--chip); }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 3px; border-radius: 12px; background: var(--chip); }
   .seg .chip { justify-content: center; border-radius: 9px; background: transparent; padding: 7px 6px; }
   .seg .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 
@@ -313,6 +313,7 @@
             <button class="chip" type="button" data-chem="garden" aria-pressed="true">Garden</button>
             <button class="chip" type="button" data-chem="heart" aria-pressed="false">Heart</button>
             <button class="chip" type="button" data-chem="quantum" aria-pressed="false">Quantum</button>
+            <button class="chip" type="button" data-chem="mould" aria-pressed="false">Mould</button>
           </div>
         </div>
         <div class="group">
@@ -332,7 +333,7 @@
               <rect class="bg" x="0.5" y="0.5" width="99" height="99" rx="10"></rect>
               <polyline class="trace" id="ecgLine" points=""></polyline>
             </svg>
-            <p class="mapcap"><span id="capMap">Feed up, kill across. The presets live along the arc.</span><span id="capEcg" hidden>The whole dish's voltage, beat by beat.</span><span id="capScreen" hidden>What a detector along the right edge would see.</span></p>
+            <p class="mapcap"><span id="capMap">Feed up, kill across. The presets live along the arc.</span><span id="capEcg" hidden>The whole dish's voltage, beat by beat.</span><span id="capScreen" hidden>What a detector along the right edge would see.</span><span id="capMass" hidden>How much vein the mould has laid, over time.</span></p>
           </div>
           <div class="sliders">
             <label><span id="lab1">feed</span> <input id="feed" type="range" min="0.005" max="0.090" step="0.0001"> <output id="feedOut">0.0000</output></label>
@@ -442,8 +443,9 @@
       <p>The surface is a trick of the light as well. The renderer reads the concentration as a low hill, works out which way each point of it faces, and lights it; the Made of row only changes what the hill is made of. Quicksilver reflects a small studio, wax lets the light out through its thin edges, neon lights nothing but the rim, and the watercolour pools its pigment where a real wash would. Fire, ice and electricity add time: each point of the flames looks down the screen for the blob burning beneath it, through noise that drifts upward; the arcs are the edge read through jittering noise and strobed; the frost glints twinkle and the cold mist drifts. In the lineage scheme each stroke burns its own colour, like a flame test. Contour draws the field's own level lines, the lines a weather map draws for pressure, and they keep going faintly outside each blob because the chemical does. The iridescent film gets its colours the way a soap bubble does, from light reflected off its top and bottom surfaces interfering, and the prism bends blue more than red, which is why its graph paper fringes. The chemistry underneath is the same.</p>
       <p>Heart swaps the chemistry for the simplest model of excitable tissue, Barkley's. A cell fires when its neighbours push it over a threshold, and then it has to rest before it can fire again: one rule, plus the usual spreading. A pacemaker firing that rule in one spot gives the rings of a normal rhythm. Break a wave, with scar tissue or with a second stimulus landing in the refractory wake of the first, and the free end curls into a spiral that never has to stop, because it is forever chasing tissue that has just recovered. That spiral is re-entry, the mechanism of a flutter; several of them at once is fibrillation. A shock fires every cell at the same instant, so every cell is resting at the same instant, and the spirals have nothing left to run on. That is what a defibrillator does. The trace beside the sliders is the whole dish's voltage over time.</p>
       <p>Quantum replaces the chemistry with the Schrödinger equation, the other great diffusion equation, the one with an <i>i</i> in it. The wavefunction is a complex number at every point: its size squared is the chance of finding the particle there, drawn as the hill, and its phase is drawn as colour. Throw a packet and it carries a wavelength, shorter the faster it goes: those are the rainbow stripes inside it. Watch them: the stripes drift backwards through the packet as it travels, because the phase moves at half the speed the packet does. Leave a packet alone and it spreads, since a particle with a definite place has no definite speed. Send one at two slits and the two halves interfere with each other on the far side, which is the experiment that makes the whole subject unavoidable; the trace beside the sliders is what a detector along the right edge would record. Send one at a thin wall taller than its energy and part of it comes through anyway. And put one in a bowl and it orbits without spreading at all, the closest a quantum thing comes to behaving like a ball.</p>
-      <p>With sound on, the dish listens. Kicks plant seeds in the garden, pace the heart, or throw particles; every kick pulses the surface and every second one turns the colours a step. In the garden, snares clear a patch. Loudness sets the pace, the brightness of the sound picks the colour of new seeds, and bass and treble lean on the feed and kill.</p>
-      <p>Alan Turing proposed this mechanism in 1952, reaction plus diffusion, as a way for a ball of identical cells to decide which end becomes the head. This particular pair of equations is the Gray–Scott model, and the presets come from John Pearson's 1993 survey of its patterns. Real Turing systems have since turned up in zebrafish stripes and in the ridges on the roof of a mouse's mouth.</p>
+      <p>Mould swaps the physics for a creature. <i>Physarum polycephalum</i>, the slime mould, is a single cell that can grow bigger than your hand, and it forages by sending out veins. It has no brain and no eyes, and in 2010 Nakagaki's group put oat flakes on a map of the Tokyo area where the towns are, set a slime mould down on Tokyo station, and watched it grow a network that matched the real railway for cost, efficiency and resilience. The dish runs Jeff Jones's model of it from the same year: thousands of agents, each of which looks ahead at three points, turns toward the strongest trail it finds, steps, and lays trail where it lands, while every step the trail blurs a little and fades a little. That is the garden's recipe turned inside out. Short range: go where the others went. Long range: forget. Veins are the paths enough agents agreed on to keep from fading, and the net coarsens because a vein that loses traffic loses its trail. Food leaks a scent that spreads farther and fades slower, which is how the mould finds it from a distance, and an agent that feeds takes the food's colour, so every vein ends up wearing the colour of what it eats. Reach is how far ahead the agents look, which sets the size of the mesh; fade is how fast trail goes, which sets how much the mould remembers.</p>
+      <p>With sound on, the dish listens. Kicks plant seeds in the garden, pace the heart, throw particles, or drop food for the mould; every kick pulses the surface and every second one turns the colours a step. In the garden, snares clear a patch. Loudness sets the pace, the brightness of the sound picks the colour of new seeds, and bass and treble lean on the feed and kill.</p>
+      <p>Alan Turing proposed this mechanism in 1952, reaction plus diffusion, as a way for a ball of identical cells to decide which end becomes the head. This particular pair of equations is the Gray–Scott model, and the presets come from John Pearson's 1993 survey of its patterns. Real Turing systems have since turned up in zebrafish stripes and in the ridges on the roof of a mouse's mouth. The slime mould is Jeff Jones's 2010 model, and the Railway preset is after Tero and colleagues' Tokyo experiment of the same year.</p>
       <p>Things to try:</p>
       <ul>
         <li>Choose Mitosis, clear the dish, and paint one dot. It divides. Then they divide.</li>
@@ -456,6 +458,9 @@
         <li>In Heart, turn the pace up past the tissue's recovery and watch every second beat get blocked. Then press Defibrillate during Fibrillation and watch the dish go quiet.</li>
         <li>In Quantum, choose Free and tap once without dragging. Then throw one hard across the dish and watch its stripes run backwards.</li>
         <li>In Quantum, raise the barrier slider during Tunnel and watch the part that gets through shrink. It never quite reaches nothing.</li>
+        <li>In Mould, choose Forage, pick a colour, and paint one dot of food far from the colony. Wait for a vein to reach it, then watch the vein turn that colour from the food back.</li>
+        <li>In Mould, paint a wall across the dish with one gap in it and food on the far side. The mould finds the gap, and the veins that led nowhere fade. In 2000 Nakagaki's group showed the real thing finds the shortest way through a maze.</li>
+        <li>In Mould, seed from a photo. The network grows into the picture and takes its colours.</li>
         <li>On a phone, tilt it: the light moves.</li>
       </ul>
       <p class="colophon">Runs entirely on your device; nothing is sent anywhere.</p>
@@ -891,6 +896,216 @@ function createQuantum(w, h) {
   return sim;
 }
 
+// A slime mould (Jones's agent model of Physarum polycephalum), CPU, toroidal grid, same shape as the garden's sim.
+// Thousands of agents each look ahead at three points, turn toward the strongest trail, step, and lay trail
+// where they land; the trail blurs and fades every step. Food leaks a scent that spreads farther and fades
+// slower, so it can be smelled from a distance. Trail is laid in three pigments, so the render arrays are
+// the trail itself, and an agent on food takes the food's colour, so each vein ends up wearing the colour
+// of what it feeds on.
+const MOULD_DIRS = 1024;   // headings are integers around the circle, so turning is arithmetic and the trig is a table
+const MOULD_COS = new Float32Array(MOULD_DIRS), MOULD_SIN = new Float32Array(MOULD_DIRS);
+for (let i = 0; i < MOULD_DIRS; i++) { MOULD_COS[i] = Math.cos(i * 2 * Math.PI / MOULD_DIRS); MOULD_SIN[i] = Math.sin(i * 2 * Math.PI / MOULD_DIRS); }
+const MOULD_FLOOR = 0.07;  // the faint stain of trail a food patch keeps, below the renderer's dome threshold, so it shows its colour
+
+function createMould(w, h) {
+  const n = w * h;
+  const sim = {
+    kind: 'mould', w, h,
+    R: new Float32Array(n), G: new Float32Array(n), Bl: new Float32Array(n), A: new Float32Array(n),
+    R2: new Float32Array(n), G2: new Float32Array(n), Bl2: new Float32Array(n),
+    scent: new Float32Array(n), scent2: new Float32Array(n),
+    food: new Float32Array(n), FR: new Float32Array(n), FG: new Float32Array(n), FB: new Float32Array(n),
+    wall: new Uint8Array(n), occ: new Uint8Array(n),
+    ax: new Float32Array(0), ay: new Float32Array(0), ah: new Int32Array(0), ai: new Int32Array(0),
+    pr: new Float32Array(0), pg: new Float32Array(0), pb: new Float32Array(0), count: 0,
+    XL: new Int32Array(w), XR: new Int32Array(w),
+    rng: Math.random, ecg: 0,
+  };
+  for (let x = 0; x < w; x++) { sim.XL[x] = (x - 1 + w) % w; sim.XR[x] = (x + 1) % w; }
+
+  // p: { sa, ra, so, ss, dep, decay, blur, eat, scentW, scentFade }
+  //   sa, ra  sensor and turning angles in degrees; so the sensing distance in cells; ss the step in cells
+  //   dep     trail laid per step; decay the fraction of trail lost per step; blur how much of a 3×3 mean is mixed in
+  //   eat     food taken per agent-visit; scentW the scent at a food cell; scentFade the fraction of scent lost per step
+  sim.step = function (p, steps) {
+    const { w, h, food, FR, FG, FB, wall, occ, XL, XR, rng } = sim;
+    const ax = sim.ax, ay = sim.ay, ah = sim.ah, ai = sim.ai, pr = sim.pr, pg = sim.pg, pb = sim.pb, count = sim.count;
+    const sa = Math.round(p.sa / 360 * MOULD_DIRS), ra = Math.round(p.ra / 360 * MOULD_DIRS);
+    const so = p.so, ss = p.ss, dep = p.dep, eat = p.eat, scentW = p.scentW;
+    const keep = 1 - p.decay, keepS = 1 - p.scentFade, bl = p.blur, bk = 1 - p.blur;
+    let mass = 0;
+    for (let s = 0; s < steps; s++) {
+      const R = sim.R, G = sim.G, Bl = sim.Bl, scent = sim.scent;
+      // ---- the agents: sense, turn, step, lay trail ----
+      for (let k = 0; k < count; k++) {
+        let x = ax[k], y = ay[k], d = ah[k];
+        const ci = ai[k];
+        if (wall[ci]) {
+          // walled in by a stroke: the mould pulls this bit of itself elsewhere
+          occ[ci] = 0;
+          x = rng() * w; y = rng() * h; d = (rng() * MOULD_DIRS) | 0;
+          const ni = (y | 0) * w + (x | 0);
+          ax[k] = x; ay[k] = y; ah[k] = d; ai[k] = ni; occ[ni] = 1;
+          continue;
+        }
+        const dl = (d - sa + MOULD_DIRS) % MOULD_DIRS, dr = (d + sa) % MOULD_DIRS;
+        let xi = (x + so * MOULD_COS[d] + w) | 0, yi = (y + so * MOULD_SIN[d] + h) | 0;
+        if (xi >= w) xi -= w; if (yi >= h) yi -= h;
+        let j = yi * w + xi;
+        const f = R[j] + G[j] + Bl[j] + scent[j];
+        xi = (x + so * MOULD_COS[dl] + w) | 0; yi = (y + so * MOULD_SIN[dl] + h) | 0;
+        if (xi >= w) xi -= w; if (yi >= h) yi -= h;
+        j = yi * w + xi;
+        const l = R[j] + G[j] + Bl[j] + scent[j];
+        xi = (x + so * MOULD_COS[dr] + w) | 0; yi = (y + so * MOULD_SIN[dr] + h) | 0;
+        if (xi >= w) xi -= w; if (yi >= h) yi -= h;
+        j = yi * w + xi;
+        const r = R[j] + G[j] + Bl[j] + scent[j];
+        if (f > l && f > r) { /* straight on */ }
+        else if (f < l && f < r) d = rng() < 0.5 ? (d - ra + MOULD_DIRS) % MOULD_DIRS : (d + ra) % MOULD_DIRS;
+        else if (l > r) d = (d - ra + MOULD_DIRS) % MOULD_DIRS;
+        else if (r > l) d = (d + ra) % MOULD_DIRS;
+        let nx = x + ss * MOULD_COS[d], ny = y + ss * MOULD_SIN[d];
+        if (nx < 0) nx += w; else if (nx >= w) nx -= w;
+        if (ny < 0) ny += h; else if (ny >= h) ny -= h;
+        const ni = (ny | 0) * w + (nx | 0);
+        if (ni !== ci && (wall[ni] || occ[ni])) {
+          // blocked: stay put and face a new way
+          d = (rng() * MOULD_DIRS) | 0;
+        } else {
+          occ[ci] = 0; occ[ni] = 1;
+          x = nx; y = ny; ai[k] = ni;
+          const fd = food[ni];
+          if (fd > 0) {
+            // eating: take on the food's colour, and use some of it up
+            pr[k] += (FR[ni] - pr[k]) * 0.5; pg[k] += (FG[ni] - pg[k]) * 0.5; pb[k] += (FB[ni] - pb[k]) * 0.5;
+            if (eat > 0) food[ni] = fd - eat > 0.02 ? fd - eat : 0;
+          }
+          R[ni] += dep * pr[k]; G[ni] += dep * pg[k]; Bl[ni] += dep * pb[k];
+        }
+        ax[k] = x; ay[k] = y; ah[k] = d;
+      }
+      // ---- the trail blurs and fades; the scent spreads and is topped up by food ----
+      const R2 = sim.R2, G2 = sim.G2, Bl2 = sim.Bl2, S2 = sim.scent2, A = sim.A;
+      mass = 0;
+      for (let y = 0; y < h; y++) {
+        const yc = y * w, yu = ((y - 1 + h) % h) * w, yd = ((y + 1) % h) * w;
+        for (let x = 0; x < w; x++) {
+          const i = yc + x, xl = XL[x], xr = XR[x];
+          const l = yc + xl, r = yc + xr, u = yu + x, dn = yd + x, ul = yu + xl, ur = yu + xr, dl = yd + xl, dr = yd + xr;
+          const fd = food[i];
+          let v = keep * (bk * R[i] + bl * (R[i] + R[l] + R[r] + R[u] + R[dn] + R[ul] + R[ur] + R[dl] + R[dr]) / 9);
+          const fr = MOULD_FLOOR * fd * FR[i]; if (v < fr) v = fr; else if (v > 1) v = 1;
+          R2[i] = v; mass += v;
+          v = keep * (bk * G[i] + bl * (G[i] + G[l] + G[r] + G[u] + G[dn] + G[ul] + G[ur] + G[dl] + G[dr]) / 9);
+          const fg = MOULD_FLOOR * fd * FG[i]; if (v < fg) v = fg; else if (v > 1) v = 1;
+          G2[i] = v; mass += v;
+          v = keep * (bk * Bl[i] + bl * (Bl[i] + Bl[l] + Bl[r] + Bl[u] + Bl[dn] + Bl[ul] + Bl[ur] + Bl[dl] + Bl[dr]) / 9);
+          const fb = MOULD_FLOOR * fd * FB[i]; if (v < fb) v = fb; else if (v > 1) v = 1;
+          Bl2[i] = v; mass += v;
+          v = keepS * (scent[i] + scent[l] + scent[r] + scent[u] + scent[dn] + scent[ul] + scent[ur] + scent[dl] + scent[dr]) / 9;
+          const sv = scentW * fd; if (v < sv) v = sv;
+          S2[i] = wall[i] ? 0 : v;
+          A[i] = wall[i] ? -1 : -0.45 * fd;
+        }
+      }
+      sim.R = R2; sim.G = G2; sim.Bl = Bl2; sim.R2 = R; sim.G2 = G; sim.Bl2 = Bl;
+      sim.scent = S2; sim.scent2 = scent;
+    }
+    sim.ecg = mass / n;
+  };
+
+  // A marks walls (-1) and food (a dip, deeper the more there is); the trail draws itself.
+  sim.sync = function () {
+    const { A, wall, food } = sim;
+    for (let i = 0; i < n; i++) A[i] = wall[i] ? -1 : -0.45 * food[i];
+  };
+
+  // Give the mould its body: count agents in a disc, or everywhere when no disc is given. Colourless until they eat.
+  sim.populate = function (count, cx, cy, rad) {
+    const { w, h, rng, occ, wall } = sim;
+    occ.fill(0);
+    sim.ax = new Float32Array(count); sim.ay = new Float32Array(count); sim.ah = new Int32Array(count); sim.ai = new Int32Array(count);
+    sim.pr = new Float32Array(count); sim.pg = new Float32Array(count); sim.pb = new Float32Array(count);
+    sim.pr.fill(1 / 3); sim.pg.fill(1 / 3); sim.pb.fill(1 / 3);
+    for (let k = 0; k < count; k++) {
+      let x, y, tries = 0;
+      do {
+        if (rad) { const a = rng() * Math.PI * 2, r = rad * Math.sqrt(rng()); x = cx + r * Math.cos(a); y = cy + r * Math.sin(a); x = ((x % w) + w) % w; y = ((y % h) + h) % h; }
+        else { x = rng() * w; y = rng() * h; }
+      } while (wall[(y | 0) * w + (x | 0)] && ++tries < 20);
+      const i = (y | 0) * w + (x | 0);
+      sim.ax[k] = x; sim.ay[k] = y; sim.ah[k] = (rng() * MOULD_DIRS) | 0; sim.ai[k] = i; occ[i] = 1;
+    }
+    sim.count = count;
+  };
+
+  // Trail, scent, food and walls go; the mould itself stays, colourless again.
+  sim.clear = function () {
+    sim.R.fill(0); sim.G.fill(0); sim.Bl.fill(0); sim.scent.fill(0); sim.food.fill(0); sim.wall.fill(0);
+    sim.pr.fill(1 / 3); sim.pg.fill(1 / 3); sim.pb.fill(1 / 3);
+    sim.sync();
+  };
+
+  // Paint food in a colour, or a wall when erase is set. Food does not go over walls.
+  sim.paint = function (cx, cy, rad, erase, pig) {
+    const { w, h, food, FR, FG, FB, wall, R, G, Bl } = sim;
+    const r2 = rad * rad;
+    const x0 = Math.floor(cx - rad), x1 = Math.ceil(cx + rad);
+    const y0 = Math.floor(cy - rad), y1 = Math.ceil(cy + rad);
+    const pr = pig ? pig[0] : 1 / 3, pg = pig ? pig[1] : 1 / 3, pb = pig ? pig[2] : 1 / 3;
+    for (let y = y0; y <= y1; y++) {
+      const yy = ((y % h) + h) % h;
+      for (let x = x0; x <= x1; x++) {
+        const dx = x - cx, dy = y - cy;
+        if (dx * dx + dy * dy > r2) continue;
+        const i = yy * w + ((x % w) + w) % w;
+        if (erase) { wall[i] = 1; food[i] = 0; R[i] = 0; G[i] = 0; Bl[i] = 0; }
+        else if (!wall[i]) { food[i] = 1; FR[i] = pr; FG[i] = pg; FB[i] = pb; }
+      }
+    }
+    sim.sync();
+  };
+
+  // Drop a few bits of food, each in its own colour.
+  sim.seed = function (count, rng) {
+    rng = rng || sim.rng;
+    const r = Math.max(2.5, Math.min(sim.w, sim.h) * 0.022);
+    for (let s = 0; s < count; s++) {
+      sim.paint(rng() * sim.w, rng() * sim.h, r * (0.7 + rng() * 0.8), false, huePigment(rng() * 360));
+    }
+  };
+
+  // Resize the grid, keeping the maps (nearest-neighbour) and the mould (scaled).
+  sim.resample = function (nw, nh) {
+    const next = createMould(nw, nh);
+    next.rng = sim.rng;
+    for (let y = 0; y < nh; y++) {
+      const sy = Math.min(sim.h - 1, Math.floor(y * sim.h / nh));
+      for (let x = 0; x < nw; x++) {
+        const sx = Math.min(sim.w - 1, Math.floor(x * sim.w / nw));
+        const si = sy * sim.w + sx, di = y * nw + x;
+        next.R[di] = sim.R[si]; next.G[di] = sim.G[si]; next.Bl[di] = sim.Bl[si]; next.scent[di] = sim.scent[si];
+        next.food[di] = sim.food[si]; next.FR[di] = sim.FR[si]; next.FG[di] = sim.FG[si]; next.FB[di] = sim.FB[si];
+        next.wall[di] = sim.wall[si];
+      }
+    }
+    const c = sim.count;
+    next.ax = new Float32Array(c); next.ay = new Float32Array(c); next.ah = Int32Array.from(sim.ah); next.ai = new Int32Array(c);
+    next.pr = Float32Array.from(sim.pr); next.pg = Float32Array.from(sim.pg); next.pb = Float32Array.from(sim.pb);
+    for (let k = 0; k < c; k++) {
+      const x = Math.min(nw - 1e-3, sim.ax[k] * nw / sim.w), y = Math.min(nh - 1e-3, sim.ay[k] * nh / sim.h), i = (y | 0) * nw + (x | 0);
+      next.ax[k] = x; next.ay[k] = y; next.ai[k] = i; next.occ[i] = 1;
+    }
+    next.count = c;
+    next.sync();
+    return next;
+  };
+
+  sim.sync();
+  return sim;
+}
+
 // A hue (degrees) as pigment shares that sum to 1.
 function huePigment(hue) {
   const c = hueRGB(hue);
@@ -964,6 +1179,32 @@ function hueRGB(hue) {
     } },
     { name: 'Free', V0: 1.0, sigma: 8, setup: function (s) {} }
   ];
+  // Mould presets: how the agents sense (angles in degrees, reach in cells), how much trail they lay and how fast
+  // it fades, what share of the dish is mould, and how the dish starts. eat is how fast food is used up.
+  var MP_BASE = { ss: 1, blur: 1, eat: 0.0001, scentW: 0.5, scentFade: 0.002 };
+  var MPRESETS = [
+    { name: 'Forage', sa: 22.5, ra: 45, so: 9, dep: 0.3, decay: 0.08, pop: 0.06, setup: function (s, p) {
+      mouldColony(s, p, 0.08);
+      s.seed(8);
+    } },
+    { name: 'Railway', sa: 22.5, ra: 45, so: 9, dep: 0.3, decay: 0.08, pop: 0.08, eat: 0, setup: function (s, p) {
+      // after the Tokyo experiment: the mould on the station, food where the towns are, and the towns stay
+      mouldColony(s, p, 0.06);
+      var m = Math.min(s.w, s.h), wide = s.w / s.h > 1.3 ? 1.4 : 1;
+      for (var i = 0; i < 10; i++) {
+        var a = i / 10 * Math.PI * 2 + (Math.random() - 0.5) * 0.3, rr = m * 0.36 * (0.85 + 0.3 * Math.random());
+        s.paint(s.w * 0.5 + rr * Math.cos(a) * wide, s.h * 0.5 + rr * Math.sin(a), m * 0.02 * (0.7 + Math.random() * 0.8), false, huePigment(i * 36));
+      }
+      for (i = 0; i < 4; i++) {
+        s.paint(s.w * 0.5 + (Math.random() - 0.5) * 0.36 * s.w, s.h * 0.5 + (Math.random() - 0.5) * 0.36 * s.h, m * 0.016 * (0.7 + Math.random() * 0.8), false, huePigment(Math.random() * 360));
+      }
+    } },
+    { name: 'Veins', sa: 45, ra: 45, so: 6, dep: 0.2, decay: 0.12, pop: 0.12, setup: function (s, p) { s.populate(Math.round(p.pop * s.w * s.h)); } },
+    { name: 'Hyphae', sa: 11, ra: 22, so: 5, dep: 0.2, decay: 0.12, blur: 0.75, pop: 0.05, setup: function (s, p) { mouldColony(s, p, 0.04); } },
+    { name: 'Cells', sa: 90, ra: 45, so: 6, dep: 0.2, decay: 0.1, pop: 0.1, setup: function (s, p) { s.populate(Math.round(p.pop * s.w * s.h)); } }
+  ];
+  // The mould's body as one colony in the middle of the dish.
+  function mouldColony(s, p, frac) { s.populate(Math.round(p.pop * s.w * s.h), s.w * 0.5, s.h * 0.5, Math.min(s.w, s.h) * frac); }
   // What each chemistry calls things, and which controls it shows.
   var CHEMS = {
     garden: { lede: 'Two chemicals, two rules, every pattern on a leopard. Paint on the dish, then watch what the rules do with it.',
@@ -971,7 +1212,9 @@ function hueRGB(hue) {
     heart: { lede: 'Excitable tissue, one rule: fire when your neighbours fire, then rest. Paint a stimulus and watch it wave; break a wave and watch it spin.',
       lab1: 'threshold', lab2: 'recovery', erase: 'Scar', seed: 'Defibrillate', hint: 'Paint on it to fire the tissue', pace: true, photo: false, swatches: true, trace: 'ecg' },
     quantum: { lede: 'A particle is a wave. Drag to throw one, paint walls in its way, and watch it interfere with itself.',
-      lab1: 'barrier', lab2: 'width', erase: 'Wall', seed: 'Scatter packets', hint: 'Drag to throw a particle', pace: false, photo: false, swatches: false, trace: 'screen' }
+      lab1: 'barrier', lab2: 'width', erase: 'Wall', seed: 'Scatter packets', hint: 'Drag to throw a particle', pace: false, photo: false, swatches: false, trace: 'screen' },
+    mould: { lede: 'A slime mould, one rule: follow the trail the others left, and let trails fade. Paint food and watch it build the veins to reach it.',
+      lab1: 'reach', lab2: 'fade', erase: 'Wall', seed: 'Scatter food', hint: 'Paint food for it to find', pace: false, photo: true, swatches: true, trace: 'mass' }
   };
   // The first scheme colours by lineage; the rest are single-hue palettes over concentration.
   var PALETTES = [
@@ -1023,7 +1266,7 @@ function hueRGB(hue) {
     f: PRESETS[0].f, k: PRESETS[0].k, steps: 8, stepsEff: 8,
     paused: false, erase: false, preset: 0,
     palette: 0, material: 0, brushHue: null, strokePig: null,
-    chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8,
+    chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null,
     tilt: { x: 0, y: 0, tx: 0, ty: 0 }
   };
   var heart = { pace: false, bpm: 60, lastPace: 0, beatHue: 10 };
@@ -1051,6 +1294,11 @@ function hueRGB(hue) {
       applyQuantumPreset(qs, state.preset >= 0 && state.preset < QPRESETS.length ? state.preset : 0);
       return qs;
     }
+    if (state.chem === 'mould') {
+      var ms = createMould(w, h);
+      applyMouldPreset(ms, state.preset >= 0 && state.preset < MPRESETS.length ? state.preset : 0);
+      return ms;
+    }
     var g = createSim(w, h);
     g.seed(7);
     return g;
@@ -1071,6 +1319,18 @@ function hueRGB(hue) {
     heart.lastPace = 0;
     s.clear();
     p.setup(s);
+  }
+  function applyMouldPreset(s, i) {
+    var p = MPRESETS[i];
+    state.mp = p; state.mso = p.so; state.mdecay = p.decay; state.preset = i;
+    s.clear();
+    p.setup(s, p);
+  }
+  // The sliders move reach and fade; the rest of the sensing comes from the last preset chosen.
+  function mouldParams() {
+    var p = state.mp || MPRESETS[0];
+    return { sa: p.sa, ra: p.ra, so: state.mso, ss: MP_BASE.ss, dep: p.dep, decay: state.mdecay, blur: p.blur || MP_BASE.blur,
+             eat: typeof p.eat === 'number' ? p.eat : MP_BASE.eat, scentW: MP_BASE.scentW, scentFade: MP_BASE.scentFade };
   }
   function setupGrid() {
     var r = stage.getBoundingClientRect();
@@ -1570,10 +1830,17 @@ void main() {
       // scar tissue: dead, rough and dull
       float rough = 0.7 + 0.3 * vnoise(gl_FragCoord.xy * 0.35);
       bg = mix(bg, mix(uBg * 2.2 + 0.05, uBg * 0.72, lt) * rough, scar);
-    } else {
+    } else if (uHeart < 2.5) {
       // a smooth potential shows as a bowl: deeper where the particle would rather be
       float pot = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);
       bg = mix(bg, mix(bg * 0.45 + vec3(0.02, 0.03, 0.05), bg * 0.8, lt), pot);
+      // walls: hard, smooth, pale
+      bg = mix(bg, mix(uBg * 2.6 + 0.12, uBg * 0.62, lt), scar);
+    } else {
+      // food: a pool of what the mould eats, in its own colour, deeper while there is more of it
+      float fd = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);
+      vec3 pool = mix(bg * 0.5 + tintP * 0.22, bg * mix(vec3(1.0), tintP, 0.5) * 0.86, lt);
+      bg = mix(bg, pool, fd);
       // walls: hard, smooth, pale
       bg = mix(bg, mix(uBg * 2.6 + 0.12, uBg * 0.62, lt), scar);
     }
@@ -1653,7 +1920,7 @@ void main() {
     gl.uniform1f(glU.uBeat, music.beat);
     gl.uniform1f(glU.uHue, music.hueAng);
     gl.uniform1i(glU.uMat, MATERIALS[state.material].id);
-    gl.uniform1f(glU.uHeart, sim.kind === 'heart' ? 1 : sim.kind === 'quantum' ? 2 : 0);
+    gl.uniform1f(glU.uHeart, sim.kind === 'heart' ? 1 : sim.kind === 'quantum' ? 2 : sim.kind === 'mould' ? 3 : 0);
     gl.uniform2f(glU.uTilt, state.tilt.x, state.tilt.y);
     gl.uniform1f(glU.uTime, (performance.now() % 3600000) / 1000);
     gl.uniform1f(glU.uLutFlip, !p.lineage && lum(p.stops[0][1]) > lum(p.stops[p.stops.length - 1][1]) ? 1 : 0);
@@ -1737,6 +2004,10 @@ void main() {
         } else if (sim.kind === 'quantum') {
           sim.step({ dt: 0.1, V0: state.qV0 }, state.stepsEff);
           drawScreen();
+        } else if (sim.kind === 'mould') {
+          sim.step(mouldParams(), Math.max(1, Math.round(state.stepsEff * 0.4)));
+          ecgBuf[ecgAt] = sim.ecg; ecgAt = (ecgAt + 1) % ecgBuf.length;
+          drawEcg();
         } else {
           sim.step(fL, kL, state.stepsEff);
         }
@@ -1823,6 +2094,9 @@ void main() {
       feedOut.value = state.hb.toFixed(3); killOut.value = state.hrec.toFixed(2);
       $('bpm').value = heart.bpm; $('bpmOut').value = heart.bpm;
       $('paceBtn').setAttribute('aria-pressed', heart.pace ? 'true' : 'false');
+    } else if (state.chem === 'mould') {
+      feedIn.value = state.mso; killIn.value = state.mdecay;
+      feedOut.value = state.mso.toFixed(1); killOut.value = state.mdecay.toFixed(3);
     } else {
       feedIn.value = state.f; killIn.value = state.k;
       feedOut.value = fmt(state.f); killOut.value = fmt(state.k);
@@ -1870,7 +2144,7 @@ void main() {
 
   // ---- chemistry: the garden, the heart or the quantum dish ----
   function buildPresets() {
-    var list = state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : PRESETS, host = $('presets');
+    var list = state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : state.chem === 'mould' ? MPRESETS : PRESETS, host = $('presets');
     while (host.firstChild) host.removeChild(host.firstChild);
     list.forEach(function (p, i) {
       var b = document.createElement('button');
@@ -1878,13 +2152,14 @@ void main() {
       b.addEventListener('click', function () {
         if (state.chem === 'heart') { if (sim) applyHeartPreset(sim, i); syncUI(); }
         else if (state.chem === 'quantum') { if (sim) applyQuantumPreset(sim, i); syncUI(); }
+        else if (state.chem === 'mould') { if (sim) applyMouldPreset(sim, i); syncUI(); }
         else setParams(p.f, p.k, i);
       });
       host.appendChild(b);
     });
   }
   function setChemistry(kind) {
-    var C = CHEMS[kind], isHeart = kind === 'heart', isQ = kind === 'quantum';
+    var C = CHEMS[kind], isHeart = kind === 'heart', isQ = kind === 'quantum', isM = kind === 'mould';
     state.chem = kind;
     state.preset = 0;
     var chips = $('chem').querySelectorAll('.chip');
@@ -1893,11 +2168,12 @@ void main() {
     $('lab1').textContent = C.lab1; $('lab2').textContent = C.lab2;
     if (isHeart) { feedIn.min = 0.01; feedIn.max = 0.12; feedIn.step = 0.001; killIn.min = 0.15; killIn.max = 0.8; killIn.step = 0.01; }
     else if (isQ) { feedIn.min = 0.05; feedIn.max = 1.5; feedIn.step = 0.01; killIn.min = 4; killIn.max = 20; killIn.step = 0.5; }
+    else if (isM) { feedIn.min = 3; feedIn.max = 16; feedIn.step = 0.5; killIn.min = 0.02; killIn.max = 0.25; killIn.step = 0.005; }
     else { feedIn.min = F_MIN; feedIn.max = F_MAX; feedIn.step = 0.0001; killIn.min = K_MIN; killIn.max = K_MAX; killIn.step = 0.0001; }
     // SVG elements have no hidden property, so the attribute is set by hand
     if (C.trace === 'map') { mapEl.removeAttribute('hidden'); $('ecg').setAttribute('hidden', ''); }
     else { mapEl.setAttribute('hidden', ''); $('ecg').removeAttribute('hidden'); }
-    $('capMap').hidden = C.trace !== 'map'; $('capEcg').hidden = C.trace !== 'ecg'; $('capScreen').hidden = C.trace !== 'screen';
+    $('capMap').hidden = C.trace !== 'map'; $('capEcg').hidden = C.trace !== 'ecg'; $('capScreen').hidden = C.trace !== 'screen'; $('capMass').hidden = C.trace !== 'mass';
     $('bpmWrap').hidden = !C.pace; $('paceBtn').hidden = !C.pace;
     $('photoBtn').hidden = !C.photo;
     $('eraseLabel').textContent = C.erase;
@@ -1934,11 +2210,13 @@ void main() {
   feedIn.addEventListener('input', function () {
     if (state.chem === 'heart') { state.hb = parseFloat(feedIn.value); state.preset = -1; syncUI(); }
     else if (state.chem === 'quantum') { state.qV0 = parseFloat(feedIn.value); syncUI(); }
+    else if (state.chem === 'mould') { state.mso = parseFloat(feedIn.value); state.preset = -1; syncUI(); }
     else setParams(parseFloat(feedIn.value), state.k);
   });
   killIn.addEventListener('input', function () {
     if (state.chem === 'heart') { state.hrec = parseFloat(killIn.value); state.preset = -1; syncUI(); }
     else if (state.chem === 'quantum') { state.qSigma = parseFloat(killIn.value); syncUI(); }
+    else if (state.chem === 'mould') { state.mdecay = parseFloat(killIn.value); state.preset = -1; syncUI(); }
     else setParams(state.f, parseFloat(killIn.value));
   });
   speedIn.addEventListener('input', function () { state.steps = parseInt(speedIn.value, 10); state.stepsEff = state.steps; speedOut.value = state.steps; });
@@ -2036,15 +2314,16 @@ void main() {
     if (!sim) return;
     if (sim.kind === 'heart') { sim.shock(); music.beat = 1; }
     else if (sim.kind === 'quantum') sim.seed(4);
+    else if (sim.kind === 'mould') sim.seed(6);
     else sim.seed(7);
   });
 
-  // ---- seed the garden from a photo: its dark places become B, in its own colours ----
+  // ---- seed the garden from a photo: its dark places become B, in its own colours (or food, for the mould) ----
   $('photoBtn').addEventListener('click', function () { $('photo').click(); });
   $('photo').addEventListener('change', function () {
     var f = this.files && this.files[0]; if (!f) return;
     var url = URL.createObjectURL(f), img = new Image();
-    img.onload = function () { URL.revokeObjectURL(url); if (sim && sim.kind === 'garden') seedFromImage(img); };
+    img.onload = function () { URL.revokeObjectURL(url); if (sim && (sim.kind === 'garden' || sim.kind === 'mould')) seedFromImage(img); };
     img.onerror = function () { URL.revokeObjectURL(url); };
     img.src = url;
     this.value = '';
@@ -2074,10 +2353,16 @@ void main() {
         var hue = mx === r ? ((g - b) / (mx - mn) % 6) * 60 : mx === g ? ((b - r) / (mx - mn) + 2) * 60 : ((r - g) / (mx - mn) + 4) * 60;
         pig = huePigment(hue);
       } else pig = [1 / 3, 1 / 3, 1 / 3];
+      if (sim.kind === 'mould') {
+        // the picture is food, and the mould will grow into it
+        sim.food[i] = Math.min(1, dark); sim.FR[i] = pig[0]; sim.FG[i] = pig[1]; sim.FB[i] = pig[2];
+        continue;
+      }
       // a speckled fill rather than a solid one, so patterns can grow all through the shape
       var amt = Math.min(1, dark) * (0.25 + 0.75 * Math.random());
       sim.R[i] = pig[0] * amt; sim.G[i] = pig[1] * amt; sim.Bl[i] = pig[2] * amt; sim.A[i] = 1 - 0.3 * amt;
     }
+    if (sim.kind === 'mould') sim.sync();
     hint.classList.add('gone');
   }
 
@@ -2324,6 +2609,11 @@ void main() {
     if (sim.kind === 'quantum') {                                          // the kick throws a particle
       var a = Math.random() * Math.PI * 2, m = 0.3 + 0.5 * strength;
       sim.packet(Math.random() * sim.w, Math.random() * sim.h, Math.cos(a) * m, Math.sin(a) * m, state.qSigma, state.qSigma);
+      music.flash = 1; return;
+    }
+    if (sim.kind === 'mould') {                                            // the kick drops food
+      var pm = huePigment(state.brushHue === null ? music.hue : state.brushHue);
+      sim.paint(Math.random() * sim.w, Math.random() * sim.h, brushRadius() * (0.8 + strength * 0.8), false, pm);
       music.flash = 1; return;
     }
     var r = brushRadius() * (0.7 + strength * 0.9);
