@@ -1,0 +1,13 @@
+# build output
+android/build/
+android/assets/
+android/res/mipmap-*/
+*.apk
+
+# signing keys never go in the repository
+*.keystore
+*.jks
+
+# tool output
+tools/out/
+node_modules/
