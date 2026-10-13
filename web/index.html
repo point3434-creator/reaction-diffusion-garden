@@ -114,6 +114,10 @@
   }
   .hint.gone { opacity: 0; }
 
+  /* A smaller dish: a pane in the middle of the stage, with the page showing round it */
+  .app:not([data-size="fill"]) .stage { background: var(--bg); }
+  .app:not([data-size="fill"]) .stage canvas { border-radius: 18px; box-shadow: var(--shadow); }
+
   /* Full screen: the bench goes, the dish takes the window, one quiet control brings it back */
   .unfocus {
     position: absolute; display: none; align-items: center; justify-content: center;
@@ -278,7 +282,7 @@
 </style>
 </head>
 <body>
-<main class="app">
+<main class="app" data-size="fill">
   <section class="stage" aria-label="The dish">
     <canvas id="view" aria-label="Reaction–diffusion simulation. Paint on it with a finger or mouse."></canvas>
     <div class="hint" id="hint">Paint on it with a finger or mouse</div>
@@ -393,6 +397,16 @@
             <div id="hues"></div>
             <button class="chip" id="anyHue" type="button" aria-pressed="true">Any colour</button>
           </div>
+        </div>
+        <div class="group">
+          <h3 class="eyebrow">Size</h3>
+          <div class="seg" id="sizes" role="group" aria-label="Dish size">
+            <button class="chip" type="button" data-size="fill" aria-pressed="true">Fill</button>
+            <button class="chip" type="button" data-size="large" aria-pressed="false">Large</button>
+            <button class="chip" type="button" data-size="medium" aria-pressed="false">Medium</button>
+            <button class="chip" type="button" data-size="small" aria-pressed="false">Small</button>
+          </div>
+          <p class="note">On a big screen the dish can sit in the middle of the window instead of filling it, and the pattern gets finer as the dish gets smaller.</p>
         </div>
       </section>
 
@@ -1248,7 +1262,7 @@ function hueRGB(hue) {
   var F_MIN = 0.005, F_MAX = 0.090, K_MIN = 0.040, K_MAX = 0.072;
 
   var $ = function (id) { return document.getElementById(id); };
-  var stage = document.querySelector('.stage');
+  var stage = document.querySelector('.stage'), app = document.querySelector('.app');
   var canvas = $('view'), ctx = null;
   var hint = $('hint');
   var feedIn = $('feed'), killIn = $('kill'), speedIn = $('speed');
@@ -1256,6 +1270,7 @@ function hueRGB(hue) {
   var mapEl = $('map'), hereEl = $('here'), anchorEl = $('anchor'), dotsEl = $('dots'), curveEl = $('curve');
 
   var darkMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : { matches: true };
+  var narrowMQ = window.matchMedia ? window.matchMedia('(max-width: 879px)') : { matches: false };
   function isDark() {
     var t = document.documentElement.getAttribute('data-theme');
     if (t === 'dark') return true;
@@ -1264,7 +1279,7 @@ function hueRGB(hue) {
   }
   var state = {
     f: PRESETS[0].f, k: PRESETS[0].k, steps: 8, stepsEff: 8,
-    paused: false, erase: false, preset: 0,
+    paused: false, erase: false, preset: 0, size: 'fill',
     palette: 0, material: 0, brushHue: null, strokePig: null,
     chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null,
     tilt: { x: 0, y: 0, tx: 0, ty: 0 }
@@ -1281,6 +1296,26 @@ function hueRGB(hue) {
     if (w >= h) { gw = longSide; gh = Math.max(60, Math.round(longSide * h / w)); }
     else { gh = longSide; gw = Math.max(60, Math.round(longSide * w / h)); }
     return { w: gw, h: gh };
+  }
+  // How much of the free part of the window the dish takes. Fill makes the dish the page; the others centre
+  // it in what the bench leaves, and because the grid is sized from pixels, a smaller dish is a finer one.
+  var SIZES = { fill: 1, large: 0.8, medium: 0.62, small: 0.46 };
+  function layoutDish() {
+    var f = typeof SIZES[state.size] === 'number' ? SIZES[state.size] : 1;
+    app.setAttribute('data-size', f < 1 ? state.size : 'fill');
+    if (f >= 1) {
+      canvas.style.left = canvas.style.top = canvas.style.width = canvas.style.height = '';
+      hint.style.left = hint.style.top = '';
+      return;
+    }
+    var r = stage.getBoundingClientRect(), narrow = narrowMQ.matches, m = narrow ? 12 : 16;
+    var x0 = m, y0 = m, x1 = r.width - m, y1 = r.height - m;
+    if (!state.focus) { if (narrow) y1 = r.height - 80; else x1 = r.width - 400 - m; }   // above the sheet's peek, or beside the bench
+    var w = Math.max(60, Math.round((x1 - x0) * f)), h = Math.max(60, Math.round((y1 - y0) * f));
+    var x = Math.round(x0 + (x1 - x0 - w) / 2), y = Math.round(y0 + (y1 - y0 - h) / 2);
+    canvas.style.left = x + 'px'; canvas.style.top = y + 'px'; canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    if (w >= 420) { hint.style.left = (x + 14) + 'px'; hint.style.top = (y + 12) + 'px'; }   // the pill follows the dish's corner when it fits
+    else { hint.style.left = hint.style.top = ''; }
   }
   // A new dish of the current chemistry: the garden gets seeds, the heart gets its first preset.
   function freshSim(w, h) {
@@ -1333,7 +1368,8 @@ function hueRGB(hue) {
              eat: typeof p.eat === 'number' ? p.eat : MP_BASE.eat, scentW: MP_BASE.scentW, scentFade: MP_BASE.scentFade };
   }
   function setupGrid() {
-    var r = stage.getBoundingClientRect();
+    layoutDish();
+    var r = canvas.getBoundingClientRect();
     if (r.width < 10 || r.height < 10) return;
     var g = gridFor(r.width, r.height);
     var changed = false;
@@ -1360,7 +1396,7 @@ function hueRGB(hue) {
   // The glass renderer draws at (capped) device resolution; the flat one draws at grid resolution.
   function fitCanvas() {
     if (!gl || !sim) return;
-    var r = stage.getBoundingClientRect();
+    var r = canvas.getBoundingClientRect();
     var dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(2.2e6 / Math.max(1, r.width * r.height)));
     var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
@@ -2367,7 +2403,7 @@ void main() {
   }
 
   // ---- the bench: four tabs, and on phones a sheet that peeks until pulled up ----
-  var panel = $('panel'), narrowMQ = window.matchMedia ? window.matchMedia('(max-width: 879px)') : { matches: false };
+  var panel = $('panel');
   function selectTab(name) {
     var btns = document.querySelectorAll('.tab-btn'), panes = document.querySelectorAll('.pane');
     for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-selected', btns[i].getAttribute('data-tab') === name ? 'true' : 'false');
@@ -2401,8 +2437,26 @@ void main() {
     selectTab(t);
   })();
 
+  // ---- the dish's size on the screen, remembered like the tab ----
+  function setSize(name) {
+    if (typeof SIZES[name] !== 'number') name = 'fill';
+    state.size = name;
+    var chips = $('sizes').querySelectorAll('.chip');
+    for (var i = 0; i < chips.length; i++) chips[i].setAttribute('aria-pressed', chips[i].getAttribute('data-size') === name ? 'true' : 'false');
+    try { localStorage.setItem('garden.size', name); } catch (e) {}
+    if (sim) setupGrid();
+  }
+  $('sizes').addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('.chip') : null;
+    if (b && b.getAttribute('data-size') !== state.size) setSize(b.getAttribute('data-size'));
+  });
+  (function () {
+    var s = 'fill';
+    try { s = localStorage.getItem('garden.size') || 'fill'; } catch (e) {}
+    setSize(s);
+  })();
+
   // ---- full screen: hide the bench; use the real thing where the browser or the app allows it ----
-  var app = document.querySelector('.app');
   state.focus = false;
   function setFocus(on) {
     state.focus = on;

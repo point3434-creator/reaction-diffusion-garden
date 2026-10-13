@@ -103,6 +103,10 @@
   }
   .hint.gone { opacity: 0; }
 
+  /* A smaller dish: a pane in the middle of the stage, with the page showing round it */
+  .app:not([data-size="fill"]) .stage { background: var(--bg); }
+  .app:not([data-size="fill"]) .stage canvas { border-radius: 18px; box-shadow: var(--shadow); }
+
   /* Full screen: the bench goes, the dish takes the window, one quiet control brings it back */
   .unfocus {
     position: absolute; display: none; align-items: center; justify-content: center;

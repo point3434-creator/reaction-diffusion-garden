@@ -40,6 +40,8 @@ The simulations run on the CPU in plain JavaScript on a grid of a few hundred ce
 
 Open `web/index.html`. Everything works from a local file except the microphone and screen sharing, which browsers allow only on `https` pages and on files opened directly in Chrome.
 
+On a big screen the dish need not be the whole window: Size, in the Look tab, offers Fill, Large, Medium and Small, and the page remembers the choice. The grid is sized from pixels, so a smaller dish is also a finer one.
+
 To edit a model, the shader or the beats, change the file in `src/` and run `python3 tools/splice.py` to put it back into the page. `python3 tools/splice.py --check` tells you whether the page and `src/` agree.
 
 ## The Android app
