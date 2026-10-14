@@ -6,15 +6,19 @@ It started as a toy for Turing patterns: two chemicals, two rules, every pattern
 
 ## What's in the dish
 
-**Garden** is the Gray–Scott reaction–diffusion model. Chemical A feeds in, chemical B washes out, and the one reaction A + 2B → 3B makes B wherever B already is. Because A diffuses twice as fast as B, blobs of B starve their neighbours, and that short-range growth with long-range inhibition is the whole recipe for spots, stripes, coral, fingerprints and dividing cells. Eight presets sit along the curve where the chemistry has a second steady state; drag the map to explore it. Every stroke founds a lineage: B carries the colour of the stroke it descends from, so where lineages meet, you can see who outgrew whom. A photo can seed the dish, its dark places becoming B in the photo's own colours.
+**Garden** is the Gray–Scott reaction–diffusion model. Chemical A feeds in, chemical B washes out, and the one reaction A + 2B → 3B makes B wherever B already is. Because A diffuses twice as fast as B, blobs of B starve their neighbours, and that short-range growth with long-range inhibition is the whole recipe for spots, stripes, coral, fingerprints and dividing cells. Eight presets sit along the curve where the chemistry has a second steady state; drag the map to explore it. The ninth, Atlas, grows them all at once: the band along that curve is straightened out over the dish, with the feed rising from one end to the other and the kill running across, so every cell reacts at its own feed and kill, and pointing at the dish shows where on the map you are. Stir turns a drag into a current: a fluid flow, after Jos Stam's stable fluids, runs under the chemistry and carries it along, so coral wraps into spirals and spots smear into streaks and pinch back into spots (hold Shift to stir without leaving the brush). Every stroke founds a lineage: B carries the colour of the stroke it descends from, so where lineages meet, you can see who outgrew whom. A photo can seed the dish: its dark places become dots of B in the photo's own colours, and the preset decides what they grow into.
 
 **Heart** is Barkley's model of excitable tissue. A cell fires when its neighbours push it over a threshold, then it must rest. A pacemaker gives you the rings of sinus rhythm; a wave broken by scar tissue or by a second stimulus in the first one's wake curls into a spiral that never stops, which is re-entry, the mechanism of flutter and fibrillation. Defibrillate fires every cell at once so every cell rests at once, and the spirals have nothing left to run on. A trace shows the whole dish's voltage like an ECG. The wavefront carries the colour of the stimulus that started it.
 
-**Quantum** is the two-dimensional time-dependent Schrödinger equation, stepped with Visscher's staggered real/imaginary scheme so the total probability stays put. Drag to throw a packet: its magnitude is the hill, its phase is the colour, and the stripes run backwards through it because the phase moves at half the packet's speed. Paint walls, raise them with the barrier slider, and run the presets: Double slit (with a detector trace along the right edge), Tunnel, Trap (a coherent state orbiting in a bowl without spreading), Box and Free.
+**Quantum** is the two-dimensional time-dependent Schrödinger equation, stepped with Visscher's staggered real/imaginary scheme so the total probability stays put. Drag to throw a packet: its magnitude is the hill, its phase is the colour, and the stripes run backwards through it because the phase moves at half the packet's speed. Paint walls, raise them with the barrier slider, and run the presets: Double slit (with a detector trace along the right edge), Tunnel, Trap (a coherent state orbiting in a bowl without spreading), Box and Free. Rewind turns time around: Visscher's scheme can be run backwards step for step, so the fringes beyond the double slit gather back through the slits into the packet that made them. Only what the absorbing edges swallowed stays gone.
 
 **Mould** is Jeff Jones's agent model of *Physarum polycephalum*, the slime mould that grew the Tokyo rail map. Thousands of agents each look ahead at three points, turn toward the strongest trail, step, and lay trail where they land; the trail blurs and fades every step, so veins are the paths enough agents keep agreeing on. It is the garden's recipe turned inside out: short range, go where the others went; long range, forget. Paint food in a colour and the mould finds it by its scent, and the veins that feed on it take that colour; paint walls and it finds the way round; seed from a photo and the network grows into the picture in the picture's own hues. Reach sets how far the agents sense, which is the mesh size; fade sets how fast trail goes. Presets: Forage, Railway (a colony on the station and food where the towns are), Veins, Hyphae and Cells.
 
 **Materials.** One height map is lit thirteen ways: Glass, Quicksilver, Velvet, Wax, Neon, Fire, Ice, Electricity, Contour, Iridescent, Prism, Watercolour and Letterpress. Fire, ice, electricity, contour and the iridescent film are animated; the prism bends blue more than red through graph paper under the dish. On a phone, tilting it moves the lights.
+
+**Keep.** Save picture saves the dish as a PNG at the size it is drawn; Record makes a video of it, with whatever the dish is listening to as the soundtrack (an MP4 where the browser can make one, otherwise WebM, up to ten minutes). Both are named after the dish and the preset, and both stay on the device.
+
+**Keys.** Space pauses, F is full screen, C clears, E erases, S stirs, R rewinds, N scatters, P saves a picture and V records; 1 to 9 pick a preset, and G, H, Q and M pick the dish.
 
 **Sound.** A song file, the microphone, or a shared screen's audio (on a computer, which is how you listen to Spotify) drives the dish: kicks plant seeds, pace the heart or throw particles, pulse the surface and turn the colours; snares clear a patch in the garden; loudness sets the pace; the brightness of the sound picks the colour of new seeds. Five beats are built in, each an original loop in homage to one producer's feel, synthesized note by note as it plays: Drunk swing, G-funk, Chop & scratch, Shaolin dust and Soul horns. Nothing is sampled.
 
@@ -27,6 +31,7 @@ src/                the pieces worth editing on their own, spliced into the page
   heart.js            the excitable-tissue model
   quantum.js          the Schrödinger model
   mould.js            the slime-mould model
+  stir.js             the flow that stirs the garden
   beats.js            the synth engine and the five beats
   style.css           the stylesheet
   panel.html          the control panel's markup, for reference
@@ -40,7 +45,7 @@ The simulations run on the CPU in plain JavaScript on a grid of a few hundred ce
 
 Open `web/index.html`. Everything works from a local file except the microphone and screen sharing, which browsers allow only on `https` pages and on files opened directly in Chrome.
 
-On a big screen the dish need not be the whole window: Size, in the Look tab, offers Fill, Large, Medium and Small, and the page remembers the choice. The grid is sized from pixels, so a smaller dish is also a finer one.
+On a big screen the dish need not be the whole window: Size, in the Look tab, offers Fill, Large, Medium and Small. The grid is sized from pixels, so a smaller dish is also a finer one. The page remembers the size, the dish, the colours, the material and the tab from one visit to the next.
 
 To edit a model, the shader or the beats, change the file in `src/` and run `python3 tools/splice.py` to put it back into the page. `python3 tools/splice.py --check` tells you whether the page and `src/` agree.
 
@@ -62,7 +67,7 @@ The result is `android/build/garden.apk`, about 120 KB. Android updates an app i
 ```
 npm install
 node tools/calibrate-heart.js      wave speed and width, spiral period, whether a shock quiets fibrillation
-node tools/calibrate-quantum.js    packet speed and norm, double-slit fringes, tunnelling, the trap's orbit
+node tools/calibrate-quantum.js    packet speed and norm, double-slit fringes, tunnelling, the trap's orbit, rewinding
 node tools/calibrate-mould.js      trail laid, dish covered, pieces of network, food reached; draws each preset to tools/out
 node tools/render-beats.js         renders each beat to tools/out/*.wav with levels
 node tools/screenshot.js quantum "Double slit" Contour dark
@@ -72,7 +77,7 @@ The heart runs at `a = 0.75, b = 0.06, ε = 0.02, dt = 0.05, D = 5` with a slowe
 
 ## Credits
 
-Alan Turing proposed reaction–diffusion as a mechanism for pattern formation in 1952; the Gray–Scott presets follow John Pearson's 1993 survey. The heart is Dwight Barkley's 1991 model. The quantum scheme is P. B. Visscher's from 1991. The slime mould is Jeff Jones's 2010 model, and the Railway preset is after Tero, Nakagaki and colleagues' 2010 Tokyo experiment. The page, the materials, the app and the beats were made in conversation with Claude.
+Alan Turing proposed reaction–diffusion as a mechanism for pattern formation in 1952; the Gray–Scott presets follow John Pearson's 1993 survey. The heart is Dwight Barkley's 1991 model. The quantum scheme is P. B. Visscher's from 1991. The slime mould is Jeff Jones's 2010 model, and the Railway preset is after Tero, Nakagaki and colleagues' 2010 Tokyo experiment. The stirring is Jos Stam's 1999 stable fluids. The page, the materials, the app and the beats were made in conversation with Claude.
 
 ## License
 

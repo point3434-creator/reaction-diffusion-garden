@@ -1,8 +1,8 @@
 {
   "name": "reaction-diffusion-garden",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
-  "description": "Three physics simulations and a slime mould in one dish: Turing patterns, excitable heart tissue, the Schrödinger equation and Physarum, painted, lit and driven by sound.",
+  "description": "Three physics simulations and a slime mould in one dish: Turing patterns, excitable heart tissue, the Schrödinger equation and Physarum, painted, stirred, lit and driven by sound.",
   "scripts": {
     "splice": "python3 tools/splice.py",
     "check": "python3 tools/splice.py --check",

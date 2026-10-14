@@ -113,6 +113,18 @@
     transition: opacity 0.6s ease;
   }
   .hint.gone { opacity: 0; }
+  .stage canvas.stir { cursor: grab; }
+  .stage canvas.stirring { cursor: grabbing; }
+
+  /* Recording: a badge over the dish while the video runs. It is page, not canvas, so the video never shows it. */
+  .recbadge {
+    position: absolute; left: 50%; transform: translateX(-50%); top: calc(12px + env(safe-area-inset-top, 0px));
+    display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px;
+    background: rgba(10, 20, 24, 0.55); color: #F2F6F3; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); pointer-events: none;
+  }
+  .recbadge i { width: 8px; height: 8px; border-radius: 50%; background: #E5484D; animation: recpulse 1.2s ease-in-out infinite; }
+  @keyframes recpulse { 50% { opacity: 0.35; } }
 
   /* A smaller dish: a pane in the middle of the stage, with the page showing round it */
   .app:not([data-size="fill"]) .stage { background: var(--bg); }
@@ -195,6 +207,9 @@
   .act .ico-play { display: none; }
   .act.paused .ico-play { display: block; }
   .act.paused .ico-pause { display: none; }
+  .act .ico-stop { display: none; }
+  .act.recording .ico-rec { display: none; }
+  .act.recording .ico-stop { display: block; }
 
   /* The chemistry switch */
   .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 3px; border-radius: 12px; background: var(--chip); }
@@ -213,7 +228,8 @@
   .map .anchor { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0; }
   .map .anchor.on { opacity: 0.9; }
   .map .trace { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
-  .map[hidden] { display: none; }
+  .map .band { fill: var(--accent); fill-opacity: 0.18; stroke: var(--accent); stroke-width: 0.8; stroke-opacity: 0.6; }
+  .map[hidden], .map .band[hidden] { display: none; }
   .mapcap { margin: 6px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.3; }
   .sliders { flex: 1 1 auto; min-width: 0; display: grid; gap: 4px; }
   .sliders label { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; row-gap: 2px; align-items: center; font-weight: 500; font-size: 13px; }
@@ -278,6 +294,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .hint, .panel, .chip, .act, .tab-btn { transition: none; }
+    .recbadge i { animation: none; }
   }
 </style>
 </head>
@@ -286,6 +303,7 @@
   <section class="stage" aria-label="The dish">
     <canvas id="view" aria-label="Reaction–diffusion simulation. Paint on it with a finger or mouse."></canvas>
     <div class="hint" id="hint">Paint on it with a finger or mouse</div>
+    <div class="recbadge" id="recBadge" hidden><i></i><span id="recTime">0:00</span></div>
     <button class="unfocus" id="unfocus" type="button" aria-label="Show the controls" title="Show the controls">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
         <path d="M3 5h14M3 10h14M3 15h14"/>
@@ -328,6 +346,7 @@
           <div class="mapwrap">
             <svg class="map" id="map" viewBox="0 0 100 100" role="img" aria-label="Map of feed and kill rates. Drag to explore; the sliders do the same thing.">
               <rect class="bg" x="0.5" y="0.5" width="99" height="99" rx="10"></rect>
+              <path class="band" id="band" d="" hidden></path>
               <path class="curve" id="curve" d=""></path>
               <g id="dots"></g>
               <circle class="anchor" id="anchor" r="2.4" cx="50" cy="50"></circle>
@@ -348,20 +367,24 @@
         </div>
         <div class="group">
           <div class="actions">
-            <button class="act" id="pause" type="button" aria-pressed="false">
+            <button class="act" id="pause" type="button" aria-pressed="false" title="Pause or play (Space)">
               <svg class="ico-pause" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5.5 3v10M10.5 3v10"/></svg>
               <svg class="ico-play" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 2.8v10.4L13 8z"/></svg>
               <span id="pauseLabel">Pause</span>
             </button>
-            <button class="act" id="erase" type="button" aria-pressed="false">
+            <button class="act" id="erase" type="button" aria-pressed="false" title="Erase (E)">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13.5l2.6-.5L13 5.6 10.4 3 3 10.4zM8.8 4.6l2.6 2.6"/></svg>
               <span id="eraseLabel">Erase</span>
             </button>
-            <button class="act" id="clear" type="button">
+            <button class="act" id="stirBtn" type="button" aria-pressed="false" title="Stir: drag to swirl the dish (S, or hold Shift and drag)">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 8a1 1 0 0 1 1 1 2 2 0 0 1-2 2 3 3 0 0 1-3-3 4 4 0 0 1 4-4 5 5 0 0 1 5 5"/></svg>
+              Stir
+            </button>
+            <button class="act" id="clear" type="button" title="Clear the dish (C)">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.7 8.5h4.6l.7-8.5"/></svg>
               Clear
             </button>
-            <button class="act" id="seed" type="button">
+            <button class="act" id="seed" type="button" title="Scatter seeds (N)">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 2v3M8 11v3M2 8h3M11 8h3M3.8 3.8l2 2M10.2 10.2l2 2M12.2 3.8l-2 2M5.8 10.2l-2 2"/></svg>
               <span id="seedLabel">Scatter seeds</span>
             </button>
@@ -373,11 +396,29 @@
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M8 13.5S2.5 10.2 2.5 6.4A2.9 2.9 0 0 1 8 5a2.9 2.9 0 0 1 5.5 1.4c0 3.8-5.5 7.1-5.5 7.1z"/></svg>
               Pace
             </button>
-            <button class="act" id="fullBtn" type="button">
+            <button class="act" id="rewindBtn" type="button" aria-pressed="false" title="Run time backwards (R)" hidden>
+              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.6 3.6v8.8L2 8zM14.2 3.6v8.8L8.6 8z"/></svg>
+              Rewind
+            </button>
+            <button class="act" id="fullBtn" type="button" title="Full screen (F)">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg>
               Full screen
             </button>
             <input type="file" id="photo" accept="image/*" hidden>
+          </div>
+        </div>
+        <div class="group" id="keep">
+          <h3 class="eyebrow">Keep</h3>
+          <div class="actions">
+            <button class="act" id="snapBtn" type="button" title="Save a picture of the dish (P)">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7l3.2 3.2L11.2 7M3 12v1.5h10V12"/></svg>
+              Save picture
+            </button>
+            <button class="act" id="recBtn" type="button" aria-pressed="false" title="Record a video of the dish, with its sound (V)">
+              <svg class="ico-rec" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="4.5" fill="#E5484D"/></svg>
+              <svg class="ico-stop" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>
+              <span id="recLabel">Record</span>
+            </button>
           </div>
         </div>
       </section>
@@ -453,30 +494,38 @@
         <div class="eq"><span class="f">∂<i>B</i>/∂<i>t</i> = ½∇²<i>B</i> + <i>AB</i>² − (<i>k</i> + <i>f</i>)<i>B</i></span><span class="g">B spreads half as fast, grows, is washed out</span></div>
       </div>
       <p>Spots are blobs that found their spacing. Stripes are blobs that could grow along but not across. The dividing cells of the mitosis preset are blobs that outgrew their own supply and split in two. Nudge the feed and the kill and the same two rules give you coral, fingerprints, or worms.</p>
+      <p>The Atlas preset grows all of them at once. It takes the band of the map along the arc, straightens it out and stretches it over the dish, so that every cell reacts at its own feed and kill: the feed rises from one end of the dish to the other, and across the dish the kill runs from just below the arc to just above it. Seeds are scattered evenly and coloured by where they land, and each stretch of the dish grows the pattern that belongs there: spots in one corner, stripes and worms through the middle, holes along one edge, and nothing at all where the kill wins. Point at the dish and the dot on the map shows where you are.</p>
+      <p>Stir moves the dish instead of painting on it. Under the chemistry runs a second simulation that you never see: water, after Jos Stam's stable fluids of 1999, the method that made computer fluids fast enough to play with. A drag pushes the water under it, the water carries the chemicals along, and pressure keeps the water from piling up anywhere, so a push in one place turns into a swirl. The swirl dies down in a few seconds, and the chemistry keeps going the whole time: coral wraps into a spiral and its lineages mix, and spots stretch into streaks, then pinch back into spots. Hold Shift to stir without leaving the brush.</p>
       <p>The colours are not part of the chemistry. Every bit of B remembers which stroke it descends from, and new B inherits the colour of whatever made it, so each stroke founds a lineage. Where two lineages meet, the colours mix a little; where one outgrows another, it inherits the ground.</p>
       <p>The surface is a trick of the light as well. The renderer reads the concentration as a low hill, works out which way each point of it faces, and lights it; the Made of row only changes what the hill is made of. Quicksilver reflects a small studio, wax lets the light out through its thin edges, neon lights nothing but the rim, and the watercolour pools its pigment where a real wash would. Fire, ice and electricity add time: each point of the flames looks down the screen for the blob burning beneath it, through noise that drifts upward; the arcs are the edge read through jittering noise and strobed; the frost glints twinkle and the cold mist drifts. In the lineage scheme each stroke burns its own colour, like a flame test. Contour draws the field's own level lines, the lines a weather map draws for pressure, and they keep going faintly outside each blob because the chemical does. The iridescent film gets its colours the way a soap bubble does, from light reflected off its top and bottom surfaces interfering, and the prism bends blue more than red, which is why its graph paper fringes. The chemistry underneath is the same.</p>
       <p>Heart swaps the chemistry for the simplest model of excitable tissue, Barkley's. A cell fires when its neighbours push it over a threshold, and then it has to rest before it can fire again: one rule, plus the usual spreading. A pacemaker firing that rule in one spot gives the rings of a normal rhythm. Break a wave, with scar tissue or with a second stimulus landing in the refractory wake of the first, and the free end curls into a spiral that never has to stop, because it is forever chasing tissue that has just recovered. That spiral is re-entry, the mechanism of a flutter; several of them at once is fibrillation. A shock fires every cell at the same instant, so every cell is resting at the same instant, and the spirals have nothing left to run on. That is what a defibrillator does. The trace beside the sliders is the whole dish's voltage over time.</p>
       <p>Quantum replaces the chemistry with the Schrödinger equation, the other great diffusion equation, the one with an <i>i</i> in it. The wavefunction is a complex number at every point: its size squared is the chance of finding the particle there, drawn as the hill, and its phase is drawn as colour. Throw a packet and it carries a wavelength, shorter the faster it goes: those are the rainbow stripes inside it. Watch them: the stripes drift backwards through the packet as it travels, because the phase moves at half the speed the packet does. Leave a packet alone and it spreads, since a particle with a definite place has no definite speed. Send one at two slits and the two halves interfere with each other on the far side, which is the experiment that makes the whole subject unavoidable; the trace beside the sliders is what a detector along the right edge would record. Send one at a thin wall taller than its energy and part of it comes through anyway. And put one in a bowl and it orbits without spreading at all, the closest a quantum thing comes to behaving like a ball.</p>
+      <p>The Schrödinger equation also runs backwards. Nothing in it forgets, so turn time around and everything retraces its steps, and the scheme that steps the dish forwards can be run backwards step for step. Press Rewind and the dish does just that: the fringes beyond the double slit gather back through the slits into the one packet that made them. Only what the absorbing edges swallowed is gone for good. The garden and the heart can't do this, because spreading smooths away the very details that running backwards would need.</p>
       <p>Mould swaps the physics for a creature. <i>Physarum polycephalum</i>, the slime mould, is a single cell that can grow bigger than your hand, and it forages by sending out veins. It has no brain and no eyes, and in 2010 Nakagaki's group put oat flakes on a map of the Tokyo area where the towns are, set a slime mould down on Tokyo station, and watched it grow a network that matched the real railway for cost, efficiency and resilience. The dish runs Jeff Jones's model of it from the same year: thousands of agents, each of which looks ahead at three points, turns toward the strongest trail it finds, steps, and lays trail where it lands, while every step the trail blurs a little and fades a little. That is the garden's recipe turned inside out. Short range: go where the others went. Long range: forget. Veins are the paths enough agents agreed on to keep from fading, and the net coarsens because a vein that loses traffic loses its trail. Food leaks a scent that spreads farther and fades slower, which is how the mould finds it from a distance, and an agent that feeds takes the food's colour, so every vein ends up wearing the colour of what it eats. Reach is how far ahead the agents look, which sets the size of the mesh; fade is how fast trail goes, which sets how much the mould remembers.</p>
       <p>With sound on, the dish listens. Kicks plant seeds in the garden, pace the heart, throw particles, or drop food for the mould; every kick pulses the surface and every second one turns the colours a step. In the garden, snares clear a patch. Loudness sets the pace, the brightness of the sound picks the colour of new seeds, and bass and treble lean on the feed and kill.</p>
-      <p>Alan Turing proposed this mechanism in 1952, reaction plus diffusion, as a way for a ball of identical cells to decide which end becomes the head. This particular pair of equations is the Gray–Scott model, and the presets come from John Pearson's 1993 survey of its patterns. Real Turing systems have since turned up in zebrafish stripes and in the ridges on the roof of a mouse's mouth. The slime mould is Jeff Jones's 2010 model, and the Railway preset is after Tero and colleagues' Tokyo experiment of the same year.</p>
+      <p>Alan Turing proposed this mechanism in 1952, reaction plus diffusion, as a way for a ball of identical cells to decide which end becomes the head. This particular pair of equations is the Gray–Scott model, and the presets come from John Pearson's 1993 survey of its patterns. Real Turing systems have since turned up in zebrafish stripes and in the ridges on the roof of a mouse's mouth. The slime mould is Jeff Jones's 2010 model, and the Railway preset is after Tero and colleagues' Tokyo experiment of the same year. The stirring is Jos Stam's stable fluids.</p>
       <p>Things to try:</p>
       <ul>
         <li>Choose Mitosis, clear the dish, and paint one dot. It divides. Then they divide.</li>
         <li>Paint a line in Fingerprint and watch it fold.</li>
         <li>Drag the point on the map slowly along the arc. Everything interesting lives next to that curve, and just off it everything dies.</li>
         <li>Switch presets mid-growth. The old pattern becomes the seed for the new one.</li>
+        <li>Choose Atlas and point at the dish to find where each pattern lives on the map. Then choose Coral and watch the whole atlas become coral.</li>
+        <li>Stir Spots in a slow circle. The spots smear into a spiral, then pinch back into spots along it.</li>
         <li>Paint two colours side by side in Coral and see where the border settles. Then do it in Storm.</li>
         <li>Seed from a photo, then switch presets and watch the picture decide what to become.</li>
         <li>In Heart, start with Sinus and paint a stroke just behind a ring, in the dark band where the tissue is still resting. Most of your stroke dies; the part that caught live tissue curls.</li>
         <li>In Heart, turn the pace up past the tissue's recovery and watch every second beat get blocked. Then press Defibrillate during Fibrillation and watch the dish go quiet.</li>
         <li>In Quantum, choose Free and tap once without dragging. Then throw one hard across the dish and watch its stripes run backwards.</li>
         <li>In Quantum, raise the barrier slider during Tunnel and watch the part that gets through shrink. It never quite reaches nothing.</li>
+        <li>In Quantum, let Double slit run until the fringes form, then press Rewind. Try it in Box after a long wait: nothing there is lost, so it all comes back.</li>
         <li>In Mould, choose Forage, pick a colour, and paint one dot of food far from the colony. Wait for a vein to reach it, then watch the vein turn that colour from the food back.</li>
         <li>In Mould, paint a wall across the dish with one gap in it and food on the far side. The mould finds the gap, and the veins that led nowhere fade. In 2000 Nakagaki's group showed the real thing finds the shortest way through a maze.</li>
         <li>In Mould, seed from a photo. The network grows into the picture and takes its colours.</li>
         <li>On a phone, tilt it: the light moves.</li>
+        <li>Play a beat, press Record, and stir. You have a music video.</li>
       </ul>
+      <p>On a computer the keys work too: Space pauses, F is full screen, C clears, E erases, S stirs, R rewinds, N scatters, P saves a picture and V records; 1 to 9 pick a preset, and G, H, Q and M pick the dish.</p>
       <p class="colophon">Runs entirely on your device; nothing is sent anywhere.</p>
       </section>
 
@@ -495,16 +544,18 @@
 function createSim(w, h) {
   const n = w * h;
   const sim = {
-    w, h,
+    kind: 'garden', w, h,
     A: new Float32Array(n), R: new Float32Array(n), G: new Float32Array(n), Bl: new Float32Array(n),
     A2: new Float32Array(n), R2: new Float32Array(n), G2: new Float32Array(n), Bl2: new Float32Array(n),
     XL: new Int32Array(w), XR: new Int32Array(w),
+    fMap: null, kMap: null,   // the atlas: a feed and a kill for every cell
   };
   for (let x = 0; x < w; x++) { sim.XL[x] = (x - 1 + w) % w; sim.XR[x] = (x + 1) % w; }
   sim.A.fill(1);
 
+  // With an atlas, every cell reacts at its own feed and kill, and f and k are nudges added to them.
   sim.step = function (f, k, steps) {
-    const { w, h, XL, XR } = sim;
+    const { w, h, XL, XR, fMap, kMap } = sim;
     const kf = k + f;
     for (let s = 0; s < steps; s++) {
       const A = sim.A, R = sim.R, G = sim.G, Bl = sim.Bl;
@@ -523,8 +574,9 @@ function createSim(w, h) {
           const lapR = -br + 0.2 * (R[l] + R[r] + R[u] + R[d]) + 0.05 * (R[ul] + R[ur] + R[dl] + R[dr]);
           const lapG = -bg + 0.2 * (G[l] + G[r] + G[u] + G[d]) + 0.05 * (G[ul] + G[ur] + G[dl] + G[dr]);
           const lapB = -bb + 0.2 * (Bl[l] + Bl[r] + Bl[u] + Bl[d]) + 0.05 * (Bl[ul] + Bl[ur] + Bl[dl] + Bl[dr]);
-          const grow = a * b - kf;           // per-unit rate for every species
-          const na = a + (lapA - a * b * b + f * (1 - a));
+          const fi = fMap ? fMap[i] + f : f, kfi = fMap ? fi + kMap[i] + k : kf;
+          const grow = a * b - kfi;          // per-unit rate for every species
+          const na = a + (lapA - a * b * b + fi * (1 - a));
           const nr = br + (0.5 * lapR + grow * br);
           const ng = bg + (0.5 * lapG + grow * bg);
           const nb = bb + (0.5 * lapB + grow * bb);
@@ -540,6 +592,13 @@ function createSim(w, h) {
   };
 
   sim.clear = function () { sim.A.fill(1); sim.R.fill(0); sim.G.fill(0); sim.Bl.fill(0); };
+
+  // Let a flow (createFlow) carry the chemicals along for one frame.
+  sim.carryBy = function (flow) {
+    flow.carry([sim.A, sim.R, sim.G, sim.Bl], [sim.A2, sim.R2, sim.G2, sim.Bl2]);
+    let t = sim.A; sim.A = sim.A2; sim.A2 = t; t = sim.R; sim.R = sim.R2; sim.R2 = t;
+    t = sim.G; sim.G = sim.G2; sim.G2 = t; t = sim.Bl; sim.Bl = sim.Bl2; sim.Bl2 = t;
+  };
 
   // Paint a disc of B in a pigment (shares summing to 1), or erase it.
   sim.paint = function (cx, cy, rad, erase, pig) {
@@ -755,6 +814,7 @@ function createQuantum(w, h) {
     R: new Float32Array(n), G: new Float32Array(n), Bl: new Float32Array(n), A: new Float32Array(n),
     XL: new Int32Array(w), XR: new Int32Array(w),
     gain: 1, screen: new Float32Array(h), total: 0,
+    reversed: false,   // running backwards: what is stored is the conjugate of what is shown
   };
   for (let x = 0; x < w; x++) { sim.XL[x] = (x - 1 + w) % w; sim.XR[x] = (x + 1) % w; }
 
@@ -787,6 +847,25 @@ function createQuantum(w, h) {
     sim.sync();
   };
 
+  // Turn time around. Running the Schrödinger equation backwards is running the conjugate of ψ forwards,
+  // and because Visscher's scheme keeps Im half a step ahead of Re, the half step Im last took is undone
+  // first: Im ← −(Im + dt·H·Re). Doing it twice gives back exactly what you started with, so forward steps
+  // after a reversal retrace the ones before it. Only damping (the absorbing edges) does not retrace.
+  sim.reverse = function (p) {
+    const { w, h, Re, Im, wall, Vs, XL, XR } = sim;
+    const dt = p.dt, V0 = p.V0;
+    for (let y = 0; y < h; y++) {
+      const yc = y * w, yu = ((y - 1 + h) % h) * w, yd = ((y + 1) % h) * w;
+      for (let x = 0; x < w; x++) {
+        const i = yc + x, re = Re[i];
+        const lap = Re[yc + XL[x]] + Re[yc + XR[x]] + Re[yu + x] + Re[yd + x] - 4 * re;
+        Im[i] = -(Im[i] + dt * (-0.5 * lap + (wall[i] ? V0 : Vs[i]) * re));
+      }
+    }
+    sim.reversed = !sim.reversed;
+    sim.sync();
+  };
+
   // Render arrays: hue from the phase, brightness from the density, with a slow automatic gain so a
   // packet that has spread thin stays visible. A marks walls (-1) and dips for smooth potentials.
   sim.sync = function () {
@@ -807,7 +886,7 @@ function createQuantum(w, h) {
         if (x >= x0) col += d;
         if (d < 1e-9) { R[i] = 0; G[i] = 0; Bl[i] = 0; }
         else {
-          const inv = 1 / Math.sqrt(d), c = re * inv, s = im * inv;
+          const inv = 1 / Math.sqrt(d), c = re * inv, s = (sim.reversed ? -im : im) * inv;   // shown as the film run backwards
           let b = d * g; if (b > 1) b = 1;
           // a hue wheel from the phase, without an atan: the three shares always sum to one
           R[i] = (0.5 + 0.5 * c) * b / 1.5;
@@ -821,7 +900,7 @@ function createQuantum(w, h) {
   };
 
   sim.clear = function () {
-    sim.Re.fill(0); sim.Im.fill(0); sim.wall.fill(0); sim.Vs.fill(0); sim.damp.fill(0); sim.hasDamp = false; sim.screen.fill(0); sim.gain = 1;
+    sim.Re.fill(0); sim.Im.fill(0); sim.wall.fill(0); sim.Vs.fill(0); sim.damp.fill(0); sim.hasDamp = false; sim.screen.fill(0); sim.gain = 1; sim.reversed = false;
     sim.sync();
   };
 
@@ -901,7 +980,7 @@ function createQuantum(w, h) {
         next.Re[di] = sim.Re[si]; next.Im[di] = sim.Im[si]; next.wall[di] = sim.wall[si]; next.Vs[di] = sim.Vs[si]; next.damp[di] = sim.damp[si];
       }
     }
-    next.gain = sim.gain; next.hasDamp = sim.hasDamp;
+    next.gain = sim.gain; next.hasDamp = sim.hasDamp; next.reversed = sim.reversed;
     next.sync();
     return next;
   };
@@ -1120,6 +1199,101 @@ function createMould(w, h) {
   return sim;
 }
 
+// Stirring: a fluid flow on the same torus as the garden, after Jos Stam's "stable fluids" (1999), which
+// carries the chemicals along while they keep reacting; a few pressure sweeps a frame keep it close to
+// incompressible. Velocity is in cells per frame. A drag pushes the fluid; the flow slows by itself and then
+// sleeps, so a still dish costs nothing.
+function createFlow(w, h) {
+  const n = w * h;
+  const flow = {
+    w, h,
+    u: new Float32Array(n), v: new Float32Array(n), u2: new Float32Array(n), v2: new Float32Array(n),
+    p: new Float32Array(n), div: new Float32Array(n),
+    XL: new Int32Array(w), XR: new Int32Array(w), YU: new Int32Array(h), YD: new Int32Array(h),
+    speed: 0,   // the fastest cell after the last frame, in cells per frame
+  };
+  for (let x = 0; x < w; x++) { flow.XL[x] = (x - 1 + w) % w; flow.XR[x] = (x + 1) % w; }
+  for (let y = 0; y < h; y++) { flow.YU[y] = ((y - 1 + h) % h) * w; flow.YD[y] = ((y + 1) % h) * w; }
+
+  // Push the fluid at (cx, cy) toward (dx, dy) cells per frame, with a soft round footprint of radius rad.
+  flow.push = function (cx, cy, dx, dy, rad) {
+    const { u, v } = flow, r = Math.ceil(rad * 2), inv = 1 / (rad * rad);
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) {
+      const yy = ((y % h) + h) % h;
+      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+        const ex = x - cx, ey = y - cy, g = Math.exp(-(ex * ex + ey * ey) * inv);
+        if (g < 0.01) continue;
+        const i = yy * w + ((x % w) + w) % w;
+        u[i] += (dx - u[i]) * g; v[i] += (dy - v[i]) * g;   // the fluid under the stroke takes the stroke's velocity
+      }
+    }
+    flow.speed = Math.max(flow.speed, Math.sqrt(dx * dx + dy * dy));
+  };
+
+  // Carry fields along the flow for one frame: each cell takes what was upstream of it (semi-Lagrangian,
+  // bilinear), so the step is stable however fast the stroke. srcs and dsts are lists of fields.
+  flow.carry = function (srcs, dsts) {
+    const { u, v } = flow, m = srcs.length;
+    for (let y = 0; y < h; y++) {
+      const yc = y * w;
+      for (let x = 0; x < w; x++) {
+        const i = yc + x, du = u[i], dv = v[i];
+        if (du * du + dv * dv < 1e-6) { for (let k = 0; k < m; k++) dsts[k][i] = srcs[k][i]; continue; }
+        const sx = x - du, sy = y - dv;
+        let x0 = Math.floor(sx), y0 = Math.floor(sy);
+        const fx = sx - x0, fy = sy - y0;
+        while (x0 < 0) x0 += w; while (x0 >= w) x0 -= w;
+        while (y0 < 0) y0 += h; while (y0 >= h) y0 -= h;
+        const x1 = x0 + 1 === w ? 0 : x0 + 1, r0 = y0 * w, r1 = (y0 + 1 === h ? 0 : y0 + 1) * w;
+        const a = (1 - fx) * (1 - fy), b = fx * (1 - fy), c = (1 - fx) * fy, d = fx * fy;
+        const i00 = r0 + x0, i01 = r0 + x1, i10 = r1 + x0, i11 = r1 + x1;
+        for (let k = 0; k < m; k++) { const s = srcs[k]; dsts[k][i] = a * s[i00] + b * s[i01] + c * s[i10] + d * s[i11]; }
+      }
+    }
+  };
+
+  // One frame of the flow: it carries itself along, sheds whatever would compress it (a pressure solve by
+  // over-relaxed red–black sweeps, warm-started from the last frame), and keeps a share keep of its speed.
+  flow.step = function (keep, sweeps) {
+    if (flow.speed < 0.02) { if (flow.speed > 0) flow.clear(); return false; }
+    const { u, v, u2, v2, p, div, XL, XR, YU, YD } = flow;
+    flow.carry([u, v], [u2, v2]);
+    for (let y = 0; y < h; y++) {
+      const yc = y * w, yu = YU[y], yd = YD[y];
+      for (let x = 0; x < w; x++) div[yc + x] = 0.5 * (u2[yc + XR[x]] - u2[yc + XL[x]] + v2[yd + x] - v2[yu + x]);
+    }
+    const om = 1.7;
+    for (let k = 0; k < sweeps; k++) {
+      for (let colour = 0; colour < 2; colour++) {
+        for (let y = 0; y < h; y++) {
+          const yc = y * w, yu = YU[y], yd = YD[y];
+          for (let x = (y + colour) & 1; x < w; x += 2) {
+            const i = yc + x;
+            const g = 0.25 * (p[yc + XL[x]] + p[yc + XR[x]] + p[yu + x] + p[yd + x] - div[i]);
+            p[i] += om * (g - p[i]);
+          }
+        }
+      }
+    }
+    let top = 0;
+    for (let y = 0; y < h; y++) {
+      const yc = y * w, yu = YU[y], yd = YD[y];
+      for (let x = 0; x < w; x++) {
+        const i = yc + x;
+        const nu = (u2[i] - 0.5 * (p[yc + XR[x]] - p[yc + XL[x]])) * keep;
+        const nv = (v2[i] - 0.5 * (p[yd + x] - p[yu + x])) * keep;
+        u[i] = nu; v[i] = nv;
+        const s2 = nu * nu + nv * nv; if (s2 > top) top = s2;
+      }
+    }
+    flow.speed = Math.sqrt(top);
+    return true;
+  };
+
+  flow.clear = function () { flow.u.fill(0); flow.v.fill(0); flow.p.fill(0); flow.speed = 0; };
+  return flow;
+}
+
 // A hue (degrees) as pigment shares that sum to 1.
 function huePigment(hue) {
   const c = hueRGB(hue);
@@ -1142,8 +1316,46 @@ function hueRGB(hue) {
     { name: 'Worms',       f: 0.0780, k: 0.0610 },
     { name: 'Holes',       f: 0.0390, k: 0.0580 },
     { name: 'Storm',       f: 0.0260, k: 0.0510 },
-    { name: 'Pulses',      f: 0.0250, k: 0.0600 }
+    { name: 'Pulses',      f: 0.0250, k: 0.0600 },
+    { name: 'Atlas',       f: 0.0485, k: 0.0631, atlas: true }   // every pattern at once; f and k mark the middle of the band
   ];
+  // The atlas: the band of the map where the patterns live, straightened out to fill the dish. Along the dish's
+  // long side the feed runs from f0 to f1; across it the kill runs from dk0 below the arc k = √f/2 − f to dk1
+  // above it. A thin frame where nothing can live keeps the torus's seams from joining the two ends.
+  var ATLAS = { f0: 0.012, f1: 0.085, dk0: -0.003, dk1: 0.006, frame: 3 };
+  function atlasAt(u, v) {
+    var f = ATLAS.f0 + (ATLAS.f1 - ATLAS.f0) * u;
+    return { f: f, k: Math.sqrt(f) / 2 - f + ATLAS.dk0 + (ATLAS.dk1 - ATLAS.dk0) * v };
+  }
+  // where a point of the dish sits in the atlas: u along the feed, v across the kill
+  function atlasUV(s, x, y) {
+    return s.w >= s.h ? { u: Math.min(1, (x + 0.5) / (s.w * (s.atlasSpan || 1))), v: 1 - (y + 0.5) / s.h } : { u: 1 - (y + 0.5) / s.h, v: (x + 0.5) / s.w };
+  }
+  // On a wide screen the bench floats over the right of a dish that fills the window, so the feed runs out
+  // where the bench begins, and what lies under the bench is more of the far end.
+  function atlasSpan() {
+    if (state.focus || !panel || narrowMQ.matches) return 1;
+    var r = canvas.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+    if (!r.width || pr.left >= r.right - 1) return 1;
+    return clamp((pr.left - r.left) / r.width, 0.5, 1);
+  }
+  function buildAtlas(s) {
+    var n = s.w * s.h;
+    s.atlasSpan = atlasSpan();
+    s.fMap = new Float32Array(n); s.kMap = new Float32Array(n);
+    for (var y = 0; y < s.h; y++) for (var x = 0; x < s.w; x++) {
+      var i = y * s.w + x, c = atlasUV(s, x, y), q = atlasAt(c.u, c.v);
+      s.fMap[i] = q.f; s.kMap[i] = Math.min(x, s.w - 1 - x, y, s.h - 1 - y) < ATLAS.frame ? 0.09 : q.k;
+    }
+  }
+  // seeds on a jittered grid, coloured by feed, so the atlas reads as a spectrum from one end to the other
+  function seedAtlas(s) {
+    var sp = 12;
+    for (var y = sp / 2; y < s.h; y += sp) for (var x = sp / 2; x < s.w; x += sp) {
+      var jx = x + (Math.random() - 0.5) * sp * 0.6, jy = y + (Math.random() - 0.5) * sp * 0.6;
+      s.paint(jx, jy, 2.2, false, huePigment(300 * atlasUV(s, jx, jy).u));
+    }
+  }
   // Heart presets: excitability is Barkley's b (lower fires more easily), recovery how fast tissue rests.
   var HP_FIXED = { a: 0.75, eps: 0.02, dt: 0.05, D: 5.0 };
   var HPRESETS = [
@@ -1222,11 +1434,11 @@ function hueRGB(hue) {
   // What each chemistry calls things, and which controls it shows.
   var CHEMS = {
     garden: { lede: 'Two chemicals, two rules, every pattern on a leopard. Paint on the dish, then watch what the rules do with it.',
-      lab1: 'feed', lab2: 'kill', erase: 'Erase', seed: 'Scatter seeds', hint: 'Paint on it with a finger or mouse', pace: false, photo: true, swatches: true, trace: 'map' },
+      lab1: 'feed', lab2: 'kill', erase: 'Erase', seed: 'Scatter seeds', hint: 'Paint on it with a finger or mouse', pace: false, photo: true, swatches: true, trace: 'map', stir: true },
     heart: { lede: 'Excitable tissue, one rule: fire when your neighbours fire, then rest. Paint a stimulus and watch it wave; break a wave and watch it spin.',
       lab1: 'threshold', lab2: 'recovery', erase: 'Scar', seed: 'Defibrillate', hint: 'Paint on it to fire the tissue', pace: true, photo: false, swatches: true, trace: 'ecg' },
     quantum: { lede: 'A particle is a wave. Drag to throw one, paint walls in its way, and watch it interfere with itself.',
-      lab1: 'barrier', lab2: 'width', erase: 'Wall', seed: 'Scatter packets', hint: 'Drag to throw a particle', pace: false, photo: false, swatches: false, trace: 'screen' },
+      lab1: 'barrier', lab2: 'width', erase: 'Wall', seed: 'Scatter packets', hint: 'Drag to throw a particle', pace: false, photo: false, swatches: false, trace: 'screen', rewind: true },
     mould: { lede: 'A slime mould, one rule: follow the trail the others left, and let trails fade. Paint food and watch it build the veins to reach it.',
       lab1: 'reach', lab2: 'fade', erase: 'Wall', seed: 'Scatter food', hint: 'Paint food for it to find', pace: false, photo: true, swatches: true, trace: 'mass' }
   };
@@ -1279,7 +1491,7 @@ function hueRGB(hue) {
   }
   var state = {
     f: PRESETS[0].f, k: PRESETS[0].k, steps: 8, stepsEff: 8,
-    paused: false, erase: false, preset: 0, size: 'fill',
+    paused: false, erase: false, stir: false, atlas: false, preset: 0, size: 'fill',
     palette: 0, material: 0, brushHue: null, strokePig: null,
     chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null,
     tilt: { x: 0, y: 0, tx: 0, ty: 0 }
@@ -1288,7 +1500,7 @@ function hueRGB(hue) {
   var ecgBuf = new Float32Array(240), ecgAt = 0;
 
   // ---- grid ----
-  var sim = null, img = null, pix32 = null, lut = new Uint32Array(256);
+  var sim = null, flow = null, img = null, pix32 = null, lut = new Uint32Array(256);
 
   function gridFor(w, h) {
     var longSide = Math.max(160, Math.min(300, Math.round(Math.max(w, h) / 3)));
@@ -1335,7 +1547,7 @@ function hueRGB(hue) {
       return ms;
     }
     var g = createSim(w, h);
-    g.seed(7);
+    if (state.atlas) { buildAtlas(g); seedAtlas(g); } else g.seed(7);
     return g;
   }
   function heartParams() {
@@ -1379,7 +1591,10 @@ function hueRGB(hue) {
       var same = Math.abs(aspectOld - aspectNew) / aspectOld < 0.08 && Math.abs(sim.w - g.w) / sim.w < 0.12;
       if (!same) { sim = sim.resample(g.w, g.h); changed = true; }
     }
+    // the atlas follows a new grid, and the part of the dish the bench leaves in view
+    if (sim.kind === 'garden' && state.atlas && (changed || Math.abs(atlasSpan() - (sim.atlasSpan || 1)) > 0.01)) buildAtlas(sim);
     if (changed) {
+      flow = null;   // a new grid starts still
       if (gl) {
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, sim.w, sim.h, 0, gl.RGBA, gl.FLOAT, null);
@@ -1441,12 +1656,14 @@ function hueRGB(hue) {
   }
   function setMaterial(idx) {
     state.material = idx;
+    try { localStorage.setItem('garden.material', MATERIALS[idx].name); } catch (e) {}
     applyStageBackground();
     var chips = $('mats').children;
     for (var i = 0; i < chips.length; i++) chips[i].setAttribute('aria-pressed', i === idx ? 'true' : 'false');
   }
   function setPalette(idx) {
     state.palette = idx;
+    try { localStorage.setItem('garden.palette', PALETTES[idx].name); } catch (e) {}
     var p = PALETTES[idx];
     if (!p.lineage) { buildLut(p.stops); uploadLut(); }
     applyStageBackground();
@@ -2021,7 +2238,7 @@ void main() {
         fL = clamp(state.f + 0.0032 * music.bass - 0.0006, F_MIN, F_MAX);
         kL = clamp(state.k + 0.0007 * music.high - 0.0002, K_MIN, K_MAX);
         target = clamp(Math.round(state.steps * (0.45 + 1.25 * music.loud)), 1, 24);
-        hereEl.setAttribute('cx', kToX(kL).toFixed(2)); hereEl.setAttribute('cy', fToY(fL).toFixed(2));
+        if (!state.atlas) { hereEl.setAttribute('cx', kToX(kL).toFixed(2)); hereEl.setAttribute('cy', fToY(fL).toFixed(2)); }
         music.flash *= 0.85;
         levelEl.style.transform = 'scaleX(' + Math.max(music.loud, music.flash).toFixed(3) + ')';
       }
@@ -2038,14 +2255,17 @@ void main() {
           ecgBuf[ecgAt] = sim.ecg; ecgAt = (ecgAt + 1) % ecgBuf.length;
           drawEcg();
         } else if (sim.kind === 'quantum') {
-          sim.step({ dt: 0.1, V0: state.qV0 }, state.stepsEff);
+          sim.step(quantumParams(), state.stepsEff);
           drawScreen();
         } else if (sim.kind === 'mould') {
           sim.step(mouldParams(), Math.max(1, Math.round(state.stepsEff * 0.4)));
           ecgBuf[ecgAt] = sim.ecg; ecgAt = (ecgAt + 1) % ecgBuf.length;
           drawEcg();
         } else {
-          sim.step(fL, kL, state.stepsEff);
+          // stirred, the flow carries the chemicals along first; in the atlas, f and k are only the music's nudges
+          if (flow && flow.w === sim.w && flow.h === sim.h && flow.step(0.982, 8)) sim.carryBy(flow);
+          if (state.atlas) sim.step(fL - state.f, kL - state.k, state.stepsEff);
+          else sim.step(fL, kL, state.stepsEff);
         }
         lastSimMs = performance.now() - t0;
         // keep the frame affordable on slower devices, and follow the music's pace
@@ -2054,6 +2274,7 @@ void main() {
         else if (state.stepsEff > target) state.stepsEff--;
       }
       render();
+      if (snapWanted) { snapWanted = false; saveSnapshot(); }   // in the same frame, while the drawing is still there
     }
     requestAnimationFrame(frame);
   }
@@ -2079,34 +2300,66 @@ void main() {
     }
     lastPt = p;
   }
+  // A stir: the drag pushes the fluid under it at the drag's own speed, in cells per frame, and the flow does the rest.
+  var stirring = false, stirLast = null;
+  function stirAt(p, t) {
+    if (stirLast) {
+      var k = 16.7 / Math.max(4, t - stirLast.t), vx = (p.x - stirLast.x) * k, vy = (p.y - stirLast.y) * k;
+      var sp = Math.sqrt(vx * vx + vy * vy);
+      if (sp > 8) { vx *= 8 / sp; vy *= 8 / sp; }
+      if (!flow || flow.w !== sim.w || flow.h !== sim.h) flow = createFlow(sim.w, sim.h);
+      flow.push(p.x, p.y, vx, vy, Math.max(4, 30 / p.scale));
+    }
+    stirLast = { x: p.x, y: p.y, t: t };
+  }
+  // In the atlas the map's dot follows the pointer, so you can see where on the map each pattern lives.
+  var MAP_CAP = 'Feed up, kill across. The presets live along the arc.';
+  var ATLAS_CAP = 'The dish is the shaded band, straightened out. Point at the dish to see where you are.';
+  function showAtlasAt(p) {
+    var f = state.f, k = state.k, cap = ATLAS_CAP;
+    if (p && sim && sim.kind === 'garden' && state.atlas) {
+      var c = atlasUV(sim, clamp(p.x, 0, sim.w - 1), clamp(p.y, 0, sim.h - 1)), q = atlasAt(c.u, c.v);
+      f = q.f; k = q.k; cap = 'Here: feed ' + fmt(f) + ', kill ' + fmt(k) + '.';
+    }
+    hereEl.setAttribute('cx', clamp(kToX(k), 0, 100).toFixed(2)); hereEl.setAttribute('cy', clamp(fToY(f), 0, 100).toFixed(2));
+    $('capMap').textContent = cap;
+  }
   canvas.addEventListener('pointerdown', function (ev) {
     if (!sim) return;
     painting = true; lastPt = null;
     state.strokePig = huePigment(strokeHue());
     canvas.setPointerCapture(ev.pointerId);
     var p = toGrid(ev);
-    if (sim.kind === 'quantum' && !state.erase) { throwStart = p; throwLast = p; }   // a throw: wait for the release
+    stirring = sim.kind === 'garden' && (state.stir || ev.shiftKey); stirLast = null;
+    canvas.classList.toggle('stirring', stirring);
+    if (stirring) stirAt(p, ev.timeStamp);
+    else if (sim.kind === 'quantum' && !state.erase) { throwStart = p; throwLast = p; }   // a throw: wait for the release
     else brush(p);
+    if (state.atlas && sim.kind === 'garden') showAtlasAt(p);
     hint.classList.add('gone');
     ev.preventDefault();
   });
   canvas.addEventListener('pointermove', function (ev) {
-    if (!painting || !sim) return;
+    if (!sim) return;
+    if (!painting) { if (state.atlas && sim.kind === 'garden') showAtlasAt(toGrid(ev)); return; }
     if (throwStart) { throwLast = toGrid(ev); return; }
     var evs = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
     if (!evs.length) evs = [ev];
-    for (var i = 0; i < evs.length; i++) brush(toGrid(evs[i]));
+    for (var i = 0; i < evs.length; i++) { var q = toGrid(evs[i]); if (stirring) stirAt(q, evs[i].timeStamp); else brush(q); }
+    if (state.atlas && sim.kind === 'garden') showAtlasAt(toGrid(ev));
   });
+  canvas.addEventListener('pointerleave', function () { if (state.atlas && !painting) showAtlasAt(null); });
   // The drag is the throw: its direction is the particle's, its length the speed. A tap is a particle at rest.
   function throwPacket() {
     if (!throwStart || !sim || sim.kind !== 'quantum') { throwStart = null; return; }
     var dx = throwLast.x - throwStart.x, dy = throwLast.y - throwStart.y, L = Math.sqrt(dx * dx + dy * dy);
     var k = L < 1.5 ? 0 : Math.min(0.9, Math.max(0.15, L / 60));
     var kx = L < 1.5 ? 0 : dx / L * k, ky = L < 1.5 ? 0 : dy / L * k;
+    if (sim.reversed) setRewind(false);   // a new particle sets time going forwards again
     sim.packet(throwStart.x, throwStart.y, kx, ky, state.qSigma, state.qSigma);
     throwStart = null; throwLast = null;
   }
-  function stopPaint() { if (throwStart) throwPacket(); painting = false; lastPt = null; }
+  function stopPaint() { if (throwStart) throwPacket(); painting = false; lastPt = null; stirring = false; stirLast = null; canvas.classList.remove('stirring'); }
   canvas.addEventListener('pointerup', stopPaint);
   canvas.addEventListener('pointercancel', stopPaint);
   canvas.addEventListener('lostpointercapture', stopPaint);
@@ -2149,6 +2402,9 @@ void main() {
       chips[i].setAttribute('aria-pressed', on ? 'true' : 'false');
       if (state.chem === 'garden' && dots[i]) dots[i].setAttribute('class', on ? 'dot on' : 'dot');
     }
+    if (state.chem === 'garden' && state.atlas) $('band').removeAttribute('hidden'); else $('band').setAttribute('hidden', '');
+    $('capMap').textContent = state.atlas ? ATLAS_CAP : MAP_CAP;
+    syncRewind();
   }
 
   // ---- the heart's pacemaker and trace ----
@@ -2179,8 +2435,9 @@ void main() {
   }
 
   // ---- chemistry: the garden, the heart or the quantum dish ----
+  function presetList() { return state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : state.chem === 'mould' ? MPRESETS : PRESETS; }
   function buildPresets() {
-    var list = state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : state.chem === 'mould' ? MPRESETS : PRESETS, host = $('presets');
+    var list = presetList(), host = $('presets');
     while (host.firstChild) host.removeChild(host.firstChild);
     list.forEach(function (p, i) {
       var b = document.createElement('button');
@@ -2189,7 +2446,7 @@ void main() {
         if (state.chem === 'heart') { if (sim) applyHeartPreset(sim, i); syncUI(); }
         else if (state.chem === 'quantum') { if (sim) applyQuantumPreset(sim, i); syncUI(); }
         else if (state.chem === 'mould') { if (sim) applyMouldPreset(sim, i); syncUI(); }
-        else setParams(p.f, p.k, i);
+        else { if (p.atlas && state.atlas && sim && sim.kind === 'garden') { sim.clear(); seedAtlas(sim); } setParams(p.f, p.k, i); }
       });
       host.appendChild(b);
     });
@@ -2211,16 +2468,20 @@ void main() {
     else { mapEl.setAttribute('hidden', ''); $('ecg').removeAttribute('hidden'); }
     $('capMap').hidden = C.trace !== 'map'; $('capEcg').hidden = C.trace !== 'ecg'; $('capScreen').hidden = C.trace !== 'screen'; $('capMass').hidden = C.trace !== 'mass';
     $('bpmWrap').hidden = !C.pace; $('paceBtn').hidden = !C.pace;
+    $('stirBtn').hidden = !C.stir; if (!C.stir && state.stir) setStir(false);
+    $('rewindBtn').hidden = !C.rewind;
     $('photoBtn').hidden = !C.photo;
     $('eraseLabel').textContent = C.erase;
     $('seedLabel').textContent = C.seed;
+    $('erase').title = C.erase + ' (E)'; $('seed').title = C.seed + ' (N)';
     $('swatches').hidden = !(PALETTES[state.palette].lineage && C.swatches);
-    hint.textContent = C.hint; hint.classList.remove('gone');
-    clearTimeout(hintTimer); hintTimer = setTimeout(function () { hint.classList.add('gone'); }, 6000);
+    showHint(C.hint, 6000);
     buildPresets();
+    state.atlas = false; if (flow) flow.clear();
     if (sim) sim = freshSim(sim.w, sim.h);
     if (kind === 'garden') { state.preset = 0; state.f = PRESETS[0].f; state.k = PRESETS[0].k; }
     ecgBuf.fill(0);
+    try { localStorage.setItem('garden.chem', kind); } catch (e) {}
     syncUI();
   }
   $('chem').addEventListener('click', function (ev) {
@@ -2238,10 +2499,20 @@ void main() {
     state.preset = typeof presetIdx === 'number' ? presetIdx : -1;
     if (state.preset < 0) {
       for (var i = 0; i < PRESETS.length; i++) {
-        if (Math.abs(PRESETS[i].f - state.f) < 1e-6 && Math.abs(PRESETS[i].k - state.k) < 1e-6) state.preset = i;
+        if (!PRESETS[i].atlas && Math.abs(PRESETS[i].f - state.f) < 1e-6 && Math.abs(PRESETS[i].k - state.k) < 1e-6) state.preset = i;
       }
     }
+    setAtlas(state.preset >= 0 && !!PRESETS[state.preset].atlas);
     syncUI();
+  }
+  // Atlas on: every cell gets its own feed and kill, and the dish starts again from a spectrum of seeds.
+  // Atlas off (another preset, the sliders or the map): one feed and kill again, and what the atlas grew is the seed.
+  function setAtlas(on) {
+    if (on === state.atlas) return;
+    state.atlas = on;
+    if (!sim || sim.kind !== 'garden') return;
+    if (on) { buildAtlas(sim); sim.clear(); seedAtlas(sim); if (flow) flow.clear(); }
+    else { sim.fMap = null; sim.kMap = null; }
   }
   feedIn.addEventListener('input', function () {
     if (state.chem === 'heart') { state.hb = parseFloat(feedIn.value); state.preset = -1; syncUI(); }
@@ -2272,7 +2543,16 @@ void main() {
       d += (d ? ' L' : 'M') + x.toFixed(2) + ' ' + y.toFixed(2);
     }
     curveEl.setAttribute('d', d);
+    // the atlas's band, which the dish shows straightened out
+    var top = '', bottom = '';
+    for (var u = 0; u <= 1.0001; u += 0.025) {
+      var hi = atlasAt(u, 1), lo = atlasAt(u, 0);
+      top += (top ? ' L' : 'M') + kToX(hi.k).toFixed(2) + ' ' + fToY(hi.f).toFixed(2);
+      bottom = ' L' + kToX(lo.k).toFixed(2) + ' ' + fToY(lo.f).toFixed(2) + bottom;
+    }
+    $('band').setAttribute('d', top + bottom + ' Z');
     for (var i = 0; i < PRESETS.length; i++) {
+      if (PRESETS[i].atlas) continue;
       var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       c.setAttribute('class', 'dot'); c.setAttribute('r', '2.6');
       c.setAttribute('cx', kToX(PRESETS[i].k).toFixed(2)); c.setAttribute('cy', fToY(PRESETS[i].f).toFixed(2));
@@ -2289,6 +2569,7 @@ void main() {
   function mapSet(p, snap) {
     if (snap) {
       for (var i = 0; i < PRESETS.length; i++) {
+        if (PRESETS[i].atlas) continue;
         var dx = p.x - kToX(PRESETS[i].k), dy = p.y - fToY(PRESETS[i].f);
         if (dx * dx + dy * dy < 30) { setParams(PRESETS[i].f, PRESETS[i].k, i); return; }
       }
@@ -2341,15 +2622,39 @@ void main() {
     this.classList.toggle('paused', state.paused);
     $('pauseLabel').textContent = state.paused ? 'Play' : 'Pause';
   });
-  $('erase').addEventListener('click', function () {
-    state.erase = !state.erase;
-    this.setAttribute('aria-pressed', state.erase ? 'true' : 'false');
-  });
-  $('clear').addEventListener('click', function () { if (sim) sim.clear(); });
+  // The brush either paints, erases (scars, walls) or stirs; erase and stir take turns.
+  function setErase(on) {
+    state.erase = on;
+    $('erase').setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (on && state.stir) setStir(false);
+  }
+  function setStir(on) {
+    state.stir = on;
+    $('stirBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+    canvas.classList.toggle('stir', on);
+    if (on) { if (state.erase) setErase(false); showHint('Drag to stir', 3000); }
+  }
+  // a few words in the hint's pill, for a while
+  function showHint(text, ms) {
+    hint.textContent = text; hint.classList.remove('gone');
+    clearTimeout(hintTimer); hintTimer = setTimeout(function () { hint.classList.add('gone'); }, ms);
+  }
+  $('erase').addEventListener('click', function () { setErase(!state.erase); });
+  $('stirBtn').addEventListener('click', function () { setStir(!state.stir); });
+  // Quantum: while Rewind is pressed, time runs backwards.
+  function quantumParams() { return { dt: 0.1, V0: state.qV0 }; }
+  function syncRewind() { $('rewindBtn').setAttribute('aria-pressed', sim && sim.kind === 'quantum' && sim.reversed ? 'true' : 'false'); }
+  function setRewind(on) {
+    if (!sim || sim.kind !== 'quantum') return;
+    if (!!sim.reversed !== on) sim.reverse(quantumParams());
+    syncRewind();
+  }
+  $('rewindBtn').addEventListener('click', function () { if (sim && sim.kind === 'quantum') setRewind(!sim.reversed); });
+  $('clear').addEventListener('click', function () { if (sim) sim.clear(); if (flow) flow.clear(); syncRewind(); });
   $('seed').addEventListener('click', function () {
     if (!sim) return;
     if (sim.kind === 'heart') { sim.shock(); music.beat = 1; }
-    else if (sim.kind === 'quantum') sim.seed(4);
+    else if (sim.kind === 'quantum') { setRewind(false); sim.seed(4); }
     else if (sim.kind === 'mould') sim.seed(6);
     else sim.seed(7);
   });
@@ -2378,29 +2683,114 @@ void main() {
     for (var i = 0; i < w * h; i++) lums[i] = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
     var sorted = Float32Array.from(lums).sort(), med = sorted[sorted.length >> 1];
     sim.clear();
-    for (i = 0; i < w * h; i++) {
-      var dark = (med - lums[i]) / Math.max(0.12, med * 0.6);
-      if (dark <= 0.15) continue;
+    function darkAt(i) { return (med - lums[i]) / Math.max(0.12, med * 0.6); }
+    // the pixel's hue, fully saturated, so the colour survives in the pattern; greys stay grey
+    function pigAt(i) {
       var r = px[i * 4] / 255, g = px[i * 4 + 1] / 255, b = px[i * 4 + 2] / 255;
       var mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx > 0 ? (mx - mn) / mx : 0;
-      var pig;
-      if (sat > 0.12) {
-        // the pixel's hue, fully saturated, so the colour survives in the pattern
-        var hue = mx === r ? ((g - b) / (mx - mn) % 6) * 60 : mx === g ? ((b - r) / (mx - mn) + 2) * 60 : ((r - g) / (mx - mn) + 4) * 60;
-        pig = huePigment(hue);
-      } else pig = [1 / 3, 1 / 3, 1 / 3];
-      if (sim.kind === 'mould') {
-        // the picture is food, and the mould will grow into it
-        sim.food[i] = Math.min(1, dark); sim.FR[i] = pig[0]; sim.FG[i] = pig[1]; sim.FB[i] = pig[2];
-        continue;
-      }
-      // a speckled fill rather than a solid one, so patterns can grow all through the shape
-      var amt = Math.min(1, dark) * (0.25 + 0.75 * Math.random());
-      sim.R[i] = pig[0] * amt; sim.G[i] = pig[1] * amt; sim.Bl[i] = pig[2] * amt; sim.A[i] = 1 - 0.3 * amt;
+      if (sat <= 0.12) return [1 / 3, 1 / 3, 1 / 3];
+      return huePigment(mx === r ? ((g - b) / (mx - mn) % 6) * 60 : mx === g ? ((b - r) / (mx - mn) + 2) * 60 : ((r - g) / (mx - mn) + 4) * 60);
     }
-    if (sim.kind === 'mould') sim.sync();
+    if (sim.kind === 'mould') {
+      // the picture is food, and the mould will grow into it
+      for (i = 0; i < w * h; i++) {
+        var dark = darkAt(i);
+        if (dark <= 0.15) continue;
+        var pig = pigAt(i);
+        sim.food[i] = Math.min(1, dark); sim.FR[i] = pig[0]; sim.FG[i] = pig[1]; sim.FB[i] = pig[2];
+      }
+      sim.sync();
+    } else {
+      // the garden gets the picture as dots, more of them where it is darker: a solid fill starves itself in
+      // Mitosis, Spots and Pulses, but dots grow in every preset
+      var sp = 7;
+      for (var y = sp / 2; y < h; y += sp) for (var x = sp / 2; x < w; x += sp) {
+        var jx = x + (Math.random() - 0.5) * sp * 0.5, jy = y + (Math.random() - 0.5) * sp * 0.5;
+        var j = Math.min(h - 1, Math.round(jy)) * w + Math.min(w - 1, Math.round(jx)), d = darkAt(j);
+        if (d > 0.15 && Math.random() < d) sim.paint(jx, jy, 2, false, pigAt(j));
+      }
+    }
     hint.classList.add('gone');
   }
+
+  // ---- keep: a picture or a video of the dish. The picture is taken right after a frame is drawn, since the
+  // drawing buffer is not kept between frames; the video records the canvas and, when there is any, the sound. ----
+  var snapWanted = false, rec = null;
+  function fileName(ext) {
+    var d = new Date(), two = function (n) { return (n < 10 ? '0' : '') + n; }, list = presetList();
+    var what = state.preset >= 0 && list[state.preset] ? list[state.preset].name.toLowerCase() : 'my own';
+    return 'garden ' + (state.chem === 'garden' ? '' : state.chem + ' ') + what + ' ' + d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) +
+      ' ' + two(d.getHours()) + '.' + two(d.getMinutes()) + '.' + two(d.getSeconds()) + '.' + ext;
+  }
+  function download(blob, name) {
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+  }
+  // The frame is copied at once, while it is still there, and turned into a PNG afterwards. The flat renderer
+  // draws at grid resolution, so its picture is enlarged to the size the dish is shown at.
+  function saveSnapshot() {
+    var r = canvas.getBoundingClientRect(), z = gl ? 1 : Math.max(1, Math.round(r.width * Math.min(2, window.devicePixelRatio || 1) / canvas.width));
+    var copy = document.createElement('canvas');
+    copy.width = canvas.width * z; copy.height = canvas.height * z;
+    var c2 = copy.getContext('2d', { alpha: false }); c2.imageSmoothingQuality = 'high'; c2.drawImage(canvas, 0, 0, copy.width, copy.height);
+    copy.toBlob(function (b) { if (b) download(b, fileName('png')); }, 'image/png');
+  }
+  $('snapBtn').addEventListener('click', function () { snapWanted = true; });
+  // an MP4 where the browser can make one (it plays everywhere, phones included), else WebM
+  function videoType() {
+    var types = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+    for (var i = 0; i < types.length; i++) if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(types[i])) return types[i];
+    return '';
+  }
+  function startRecording() {
+    var stream, tap = null, mr, type = videoType(), chunks = [];
+    try { stream = canvas.captureStream(30); } catch (e) { return; }
+    if (ensureCtx()) {   // everything audible (a song, a beat, the room, a shared tab) already runs through the analyser
+      tap = music.actx.createMediaStreamDestination();
+      music.analyser.connect(tap);
+      tap.stream.getAudioTracks().forEach(function (t) { stream.addTrack(t); });
+    }
+    function release() { if (tap) { try { music.analyser.disconnect(tap); } catch (e) {} } stream.getTracks().forEach(function (t) { t.stop(); }); }
+    try { mr = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 12e6 } : { videoBitsPerSecond: 12e6 }); }
+    catch (e) { release(); return; }
+    mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    mr.onstop = function () {
+      release();
+      var mime = mr.mimeType || type || 'video/webm';
+      if (chunks.length) download(new Blob(chunks, { type: mime }), fileName(/mp4/.test(mime) ? 'mp4' : 'webm'));
+      else showHint('Too short to save', 2500);
+    };
+    try { mr.start(1000); } catch (e) { release(); return; }
+    rec = { mr: mr, t0: performance.now(), timer: setInterval(tickRecording, 250) };
+    syncRecording();
+  }
+  function stopRecording() {
+    if (!rec) return;
+    clearInterval(rec.timer);
+    try { rec.mr.stop(); } catch (e) {}
+    rec = null;
+    syncRecording();
+  }
+  function tickRecording() {
+    if (!rec) return;
+    var secs = Math.floor((performance.now() - rec.t0) / 1000);
+    if (secs >= 600) { stopRecording(); return; }   // ten minutes at most, so the video fits in memory
+    var t = Math.floor(secs / 60) + ':' + (secs % 60 < 10 ? '0' : '') + (secs % 60);
+    $('recTime').textContent = t; $('recLabel').textContent = 'Stop ' + t;
+  }
+  function syncRecording() {
+    var on = !!rec;
+    $('recBtn').setAttribute('aria-pressed', on ? 'true' : 'false'); $('recBtn').classList.toggle('recording', on);
+    $('recLabel').textContent = on ? 'Stop 0:00' : 'Record'; $('recTime').textContent = '0:00';
+    $('recBadge').hidden = !on;
+  }
+  $('recBtn').addEventListener('click', function () { if (rec) stopRecording(); else startRecording(); });
+  (function () {
+    var inApp = !!window.Garden;   // the Android app's web view cannot hand a download to the phone
+    var snapOK = !inApp && !!canvas.toBlob, recOK = !inApp && !!(canvas.captureStream && window.MediaRecorder);
+    $('snapBtn').hidden = !snapOK; $('recBtn').hidden = !recOK; $('keep').hidden = !snapOK && !recOK;
+  })();
 
   // ---- the bench: four tabs, and on phones a sheet that peeks until pulled up ----
   var panel = $('panel');
@@ -2475,11 +2865,34 @@ void main() {
   $('fullBtn').addEventListener('click', function () { setFocus(true); });
   $('unfocus').addEventListener('click', function () { setFocus(false); });
   document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && state.focus) setFocus(false); });
+  // Keys, on a computer: F full screen, Space pause, C clear, E the brush toggle (erase, scar or wall), S stir,
+  // R rewind, N scatter, P save a picture, V record, 1 to 9 the presets, and G, H, Q and M the four dishes.
+  var CHEM_KEYS = { g: 'garden', h: 'heart', q: 'quantum', m: 'mould' };
+  function press(id) { var b = $(id); if (!b || b.hidden) return false; b.click(); return true; }
   document.addEventListener('keydown', function (ev) {
-    if (ev.target && /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
-    if (ev.key === 'f' || ev.key === 'F') { setFocus(!state.focus); ev.preventDefault(); }
-    else if (ev.key === 'Escape' && state.focus && !document.fullscreenElement) setFocus(false);
+    var t = ev.target, k = typeof ev.key !== 'string' ? '' : ev.key.length === 1 ? ev.key.toLowerCase() : ev.key, hit = true;
+    if (t && (/^(TEXTAREA|SELECT)$/.test(t.tagName) || (t.tagName === 'INPUT' && t.type !== 'range'))) return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return;
+    if (k === 'f') setFocus(!state.focus);
+    else if (k === 'Escape') { if (state.focus && !document.fullscreenElement) setFocus(false); else hit = false; }
+    else if (k === ' ') { if (t && t.tagName === 'BUTTON') hit = false; else press('pause'); }
+    else if (k === 'c') press('clear');
+    else if (k === 'e') press('erase');
+    else if (k === 's') hit = press('stirBtn');
+    else if (k === 'r') hit = press('rewindBtn');
+    else if (k === 'n') press('seed');
+    else if (k === 'p') hit = press('snapBtn');
+    else if (k === 'v') hit = press('recBtn');
+    else if (k.length === 1 && k >= '1' && k <= '9') { var c = $('presets').children[+k - 1]; if (c) c.click(); else hit = false; }
+    else if (CHEM_KEYS[k]) { if (CHEM_KEYS[k] !== state.chem) setChemistry(CHEM_KEYS[k]); }
+    else hit = false;
+    if (hit) ev.preventDefault();
   });
+  // A button clicked with a pointer hands its focus back, so Space and the letter keys reach the dish afterwards.
+  document.addEventListener('click', function (ev) {
+    var b = ev.detail > 0 && ev.target && ev.target.closest ? ev.target.closest('button') : null;
+    if (b) b.blur();
+  }, true);
 
 
   // ---- music ----
@@ -2661,6 +3074,7 @@ void main() {
     if (!sim) return;
     if (sim.kind === 'heart') { fireNode(performance.now()); return; }   // the heart beats to the kick
     if (sim.kind === 'quantum') {                                          // the kick throws a particle
+      if (sim.reversed) { music.flash = 1; return; }                       // but not while time runs backwards
       var a = Math.random() * Math.PI * 2, m = 0.3 + 0.5 * strength;
       sim.packet(Math.random() * sim.w, Math.random() * sim.h, Math.cos(a) * m, Math.sin(a) * m, state.qSigma, state.qSigma);
       music.flash = 1; return;
@@ -3134,11 +3548,17 @@ void main() {
   }
 
   // ---- go ----
+  // the dish, the colours and the material from last time, read before anything below saves its own
+  var saved = {};
+  try { saved = { chem: localStorage.getItem('garden.chem'), palette: localStorage.getItem('garden.palette'), material: localStorage.getItem('garden.material') }; } catch (e) {}
+  function named(list, name) { for (var i = 0; i < list.length; i++) if (list[i].name === name) return i; return -1; }
   if (!initGL()) ctx = canvas.getContext('2d', { alpha: false });
   $('materials').hidden = !gl;
-  setPalette(state.palette);
+  setPalette(named(PALETTES, saved.palette) >= 0 ? named(PALETTES, saved.palette) : state.palette);
+  if (gl && named(MATERIALS, saved.material) >= 0) setMaterial(named(MATERIALS, saved.material));
   syncHues();
   setParams(state.f, state.k, 0);
+  if (saved.chem && Object.prototype.hasOwnProperty.call(CHEMS, saved.chem) && saved.chem !== state.chem) setChemistry(saved.chem);
   setupGrid();
   if (window.ResizeObserver) {
     var pending = null;
