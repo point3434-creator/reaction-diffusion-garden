@@ -6,7 +6,8 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
-const [chem = 'garden', preset = 'Coral', material = 'Glass', theme = 'dark', width = '1000', height = '640', seconds = '6', size = 'large'] = process.argv.slice(2);
+const [chem = 'garden', preset = 'Coral', material = 'Glass', theme = 'dark', width = '1000', height = '640', seconds = '6', sizeArg = 'large'] = process.argv.slice(2);
+const size = sizeArg === 'fill' ? 'large' : sizeArg;   // Fill, from when Size shrank the dish, was the full-size pattern
 const OUT = path.join(__dirname, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 
