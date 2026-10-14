@@ -91,10 +91,10 @@ float lightReach(vec2 uv, float z0, vec3 d, float spread) {
   if (tMax <= 0.0) return 1.0;
   vec2 dir = d.xy / run / uTexSize;
   // the steps start a third of a cell apart, where a dome's steep wall decides the shadow's edge, and grow by a
-  // fifth each time, so twenty of them reach about 75 cells
+  // fifth each time, so the twenty-first lands about 74 cells out
   float dt = 0.33, t = dt;
   float vis = 1.0;
-  for (int k = 0; k < 20; k++) {
+  for (int k = 0; k < 21; k++) {
     if (t > tMax) break;
     vec2 at = uv + dir * t;
     float hs = texture(uHeight, vec2(at.x, 1.0 - at.y)).r * uBump;
