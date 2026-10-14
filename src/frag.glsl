@@ -78,32 +78,75 @@ float blockerOf(float b) {
   float q = clamp((b - E0 + 0.02) / (BPK - E0 + 0.02), 0.0, 1.0);
   return q * (2.0 - q);
 }
-// How much of a light gets here, ray-traced: march from the surface toward the light across the height map and
-// see how close the domes in between come to the ray. 1 in full light, 0 behind a dome, and soft across a band as
-// wide as the light looks from here (spread, as a slope). d points at the light, in cells, with z up.
-float lightReach(vec2 uv, float z0, vec3 d, float spread) {
-  if (d.z <= 0.0) return 0.0;
+// How a material lets light through: x how deeply its own colour tints the light, and y how much it dims all
+// of it, both for each cell of dome crossed; z how much it spreads the light, softening the shadow; w 1 if any
+// light gets through at all. Glass and prism are clear, ice is frosted, a soap film barely there, and wax lets a
+// soft glow through.
+vec4 seeThrough(int m) {
+  if (m == 0) return vec4(0.5, 0.012, 1.0, 1.0);
+  if (m == 12) return vec4(0.2, 0.008, 1.0, 1.0);
+  if (m == 8) return vec4(0.18, 0.03, 2.5, 1.0);
+  if (m == 10) return vec4(0.10, 0.02, 1.3, 1.0);
+  if (m == 3) return vec4(0.25, 0.08, 3.0, 1.0);
+  return vec4(0.0, 0.0, 1.0, 0.0);
+}
+// A dome as a lens: x how brightly it gathers light toward the middle of its shadow, y how much light the rim
+// bends away, z how much more it bends blue than red.
+vec3 lensOf(int m) {
+  if (m == 0) return vec3(1.2, 0.6, 0.0);
+  if (m == 12) return vec3(1.0, 0.5, 0.15);
+  if (m == 8) return vec3(0.4, 0.3, 0.0);
+  if (m == 10) return vec3(0.0, 0.1, 0.0);
+  return vec3(0.0);
+}
+// How much of a light gets here, and in what colour, ray-traced: march from the surface toward the light across
+// the height map and see how close the domes in between come to the ray. Behind an opaque dome nothing gets
+// through; a see-through one tints and dims the light by how far the ray travels inside it. Soft across a band
+// as wide as the light looks from here (spread, as a slope). d points at the light, in cells, with z up.
+vec3 lightReach(vec2 uv, float z0, vec3 d, float spread) {
+  if (d.z <= 0.0) return vec3(0.0);
   float run = length(d.xy);
-  if (run < 1e-3) return 1.0;
+  if (run < 1e-3) return vec3(1.0);
   float rise = d.z / run;
   // past tMax the ray is above every dome, so nothing further on can block it
   float tMax = min(run, (uBump - z0) / rise);
-  if (tMax <= 0.0) return 1.0;
+  if (tMax <= 0.0) return vec3(1.0);
   vec2 dir = d.xy / run / uTexSize;
+  vec4 st = seeThrough(uMat);
+  spread *= st.z;
+  float slant = sqrt(1.0 + rise * rise);   // the ray's length for each cell it crosses the dish
   // the steps start a third of a cell apart, where a dome's steep wall decides the shadow's edge, and grow by a
   // fifth each time, so the twenty-first lands about 74 cells out
   float dt = 0.33, t = dt;
   float vis = 1.0;
+  vec3 depth = vec3(0.0);   // how much of each colour the domes crossed have taken out (optical depth)
+  float hit = 0.0, core = 0.0;   // whether the ray went through a dome, and how near its peak
   for (int k = 0; k < 21; k++) {
     if (t > tMax) break;
     vec2 at = uv + dir * t;
-    float hs = texture(uHeight, vec2(at.x, 1.0 - at.y)).r * uBump;
-    vis = min(vis, clamp(0.5 + 0.5 * (z0 + 0.3 + rise * t - hs) / ((t + 1.0) * spread), 0.0, 1.0));
-    if (vis <= 0.0) break;
+    vec4 hc = texture(uHeight, vec2(at.x, 1.0 - at.y));
+    float clear = clamp(0.5 + 0.5 * (z0 + 0.3 + rise * t - hc.r * uBump) / ((t + 1.0) * spread), 0.0, 1.0);
+    if (st.w > 0.5) {
+      depth += (st.x * (1.0 - hc.gba) + st.y) * (1.0 - clear) * dt * slant;
+      hit = max(hit, 1.0 - clear);
+      core = max(core, (1.0 - clear) * hc.r);
+      if (min(depth.r, min(depth.g, depth.b)) > 7.0) break;   // nothing more gets through
+    } else {
+      vis = min(vis, clear);
+      if (vis <= 0.0) break;
+    }
     dt *= 1.2;
     t += dt;
   }
-  return vis * vis * (3.0 - 2.0 * vis);
+  if (st.w > 0.5) {
+    // the dome bends what it lets through toward the middle of its shadow: brighter where the ray crossed near its
+    // peak, darker where it only clipped the rim (prism: blue a little further in than red)
+    vec3 ln = lensOf(uMat);
+    vec3 kc = core + vec3(-ln.z, 0.0, ln.z);
+    vec3 lens = 1.0 + hit * (ln.x * smoothstep(0.7, 1.0, kc) - ln.y * (1.0 - smoothstep(0.25, 0.7, kc)));
+    return exp(-depth) * lens;
+  }
+  return vec3(vis * vis * (3.0 - 2.0 * vis));
 }
 // How shiny each material is under a lamp: the strength of the lamp's own highlight on it.
 float glossOf(int m) {
@@ -136,6 +179,18 @@ vec3 hueTurn(vec3 c, float a) {
   float ca = cos(a), sa = sin(a);
   return clamp(c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca), 0.0, 1.0);
 }
+// The colour a see-through dome gives the light crossing it, as each material shows its colour.
+vec3 filterOf(vec4 c, float b) {
+  float m = max(c.r, max(c.g, c.b));
+  vec3 pig = hueTurn(m > 1e-5 ? c.rgb / m : vec3(1.0), uHue);
+  float q = clamp((b - E0) / (BPK - E0), 0.0, 1.0);
+  vec3 tint = mix(hueTurn(texture(uLut, vec2(0.45 + 0.5 * q, 0.5)).rgb, uHue), pig, uLineage);
+  vec3 tintP = mix(hueTurn(texture(uLut, vec2(0.55 + 0.25 * q, 0.5)).rgb, uHue), pig, uLineage);
+  if (uMat == 8) return mix(vec3(0.78, 0.90, 1.0), tintP, 0.35);
+  if (uMat == 3) return mix(tintP, vec3(1.0, 0.96, 0.88), 0.22);
+  if (uMat == 10) return mix(vec3(1.0), tintP, 0.3);
+  return tint;
+}
 // Graph paper under the dish, in grid cells: a line every five cells.
 float gridAt(vec2 p) {
   vec2 f = abs(fract(p * 0.2) - 0.5) * 5.0;
@@ -152,7 +207,8 @@ vec3 flameCol(float x, vec3 hue) {
 void main() {
   // the heights the rays read, from the smooth (bicubic) field: read from the grid itself, every shadow's edge
   // would be ragged a cell at a time
-  if (uPass == 1) { outColor = vec4(blockerOf(bsum(fieldAt(vUv))), 0.0, 0.0, 1.0); return; }
+  // and, for see-through materials, the colour each dome gives the light crossing it
+  if (uPass == 1) { vec4 c1 = fieldAt(vUv); float b1 = bsum(c1); outColor = vec4(blockerOf(b1), filterOf(c1, b1)); return; }
   vec2 px = 1.0 / uTexSize;
   vec4 c = fieldAt(vUv);
   float b = bsum(c);
@@ -170,7 +226,7 @@ void main() {
   // Lamps and the sun light the dish themselves. E is the light arriving here as a multiple of the room's own,
   // after a ray toward each light has looked for domes in the way; glint is the lamps' own highlights.
   vec3 E = vec3(1.0), glint = vec3(0.0);
-  float sunReach = 1.0;
+  float sunSeen = 1.0;
   float z0 = h * uBump;
   if (uLight == 1) {
     E = vec3(mix(0.16, 0.34, uLightTheme));
@@ -188,7 +244,8 @@ void main() {
     }
     L = normalize(toward);
   } else if (uLight == 2) {
-    sunReach = lightReach(vUv, z0, uSun * 4000.0, 0.05);
+    vec3 sunReach = lightReach(vUv, z0, uSun * 4000.0, 0.05);
+    sunSeen = dot(sunReach, vec3(0.3, 0.5, 0.2));
     E = mix(vec3(0.34, 0.40, 0.52), vec3(0.45, 0.48, 0.56), uLightTheme) + uSunCol * sunReach * max(dot(N, uSun), 0.0) * mix(1.7, 1.25, uLightTheme);
     L = uSun;
   }
@@ -202,7 +259,7 @@ void main() {
   float fres = 1.0 - clamp(N.z, 0.0, 1.0);
   float caus = pow(max(dot(N, Lc), 0.0), 22.0);
   // under lamps each lamp makes its own highlight; in sunshine the sun's goes out where a dome hides the sun
-  spec *= uLight == 1 ? 0.0 : sunReach;
+  spec *= uLight == 1 ? 0.0 : sunSeen;
   spec2 *= uLight == 0 ? 1.0 : 0.5;
 
   float m = max(c.r, max(c.g, c.b));
