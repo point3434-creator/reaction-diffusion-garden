@@ -2762,7 +2762,7 @@ void main() {
       tap.stream.getAudioTracks().forEach(function (t) { stream.addTrack(t); });
     }
     function release() { if (tap) { try { music.analyser.disconnect(tap); } catch (e) {} } stream.getTracks().forEach(function (t) { t.stop(); }); }
-    try { mr = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 12e6 } : { videoBitsPerSecond: 12e6 }); }
+    try { mr = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 8e6 } : { videoBitsPerSecond: 8e6 }); }
     catch (e) { release(); return; }
     mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
     mr.onstop = function () {
@@ -2785,7 +2785,7 @@ void main() {
   function tickRecording() {
     if (!rec) return;
     var secs = Math.floor((performance.now() - rec.t0) / 1000);
-    if (secs >= 600) { stopRecording(); return; }   // ten minutes at most, so the video fits in memory
+    if (secs >= 300) { stopRecording(); return; }   // five minutes at most: the video stays in memory until Stop, and at 8 Mb/s that is up to 300 MB
     var t = Math.floor(secs / 60) + ':' + (secs % 60 < 10 ? '0' : '') + (secs % 60);
     $('recTime').textContent = t; $('recLabel').textContent = 'Stop ' + t;
   }

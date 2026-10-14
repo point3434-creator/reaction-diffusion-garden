@@ -16,7 +16,7 @@ It started as a toy for Turing patterns: two chemicals, two rules, every pattern
 
 **Materials.** One height map is lit thirteen ways: Glass, Quicksilver, Velvet, Wax, Neon, Fire, Ice, Electricity, Contour, Iridescent, Prism, Watercolour and Letterpress. Fire, ice, electricity, contour and the iridescent film are animated; the prism bends blue more than red through graph paper under the dish. On a phone, tilting it moves the lights.
 
-**Keep.** Save picture saves the dish as a PNG at the size it is drawn; Record makes a video of it, with whatever the dish is listening to as the soundtrack (an MP4 where the browser can make one, otherwise WebM, up to ten minutes). Both are named after the dish and the preset, and both stay on the device.
+**Keep.** Save picture saves the dish as a PNG at the size it is drawn; Record makes a video of it, with whatever the dish is listening to as the soundtrack (an MP4 where the browser can make one, otherwise WebM, up to five minutes). Both are named after the dish and the preset, and both stay on the device.
 
 **Keys.** Space pauses, F is full screen, C clears, E erases, S stirs, R rewinds, N scatters, P saves a picture and V records; 1 to 9 pick a preset, and G, H, Q and M pick the dish.
 
