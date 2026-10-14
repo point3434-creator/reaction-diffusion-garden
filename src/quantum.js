@@ -11,6 +11,7 @@ function createQuantum(w, h) {
     XL: new Int32Array(w), XR: new Int32Array(w),
     gain: 1, screen: new Float32Array(h), total: 0,
     reversed: false,   // running backwards: what is stored is the conjugate of what is shown
+    zoom: 1,           // how fine the grid is, as a share of a full-size one's cells (0.5 on a grid twice as fine)
   };
   for (let x = 0; x < w; x++) { sim.XL[x] = (x - 1 + w) % w; sim.XR[x] = (x + 1) % w; }
 
@@ -159,7 +160,7 @@ function createQuantum(w, h) {
 
   sim.seed = function (count, rng) {
     rng = rng || Math.random;
-    const s = Math.max(5, Math.min(sim.w, sim.h) * 0.04);
+    const s = Math.max(5, Math.min(sim.w, sim.h) * sim.zoom * 0.04);   // as wide in cells on a finer grid, so smaller
     for (let k = 0; k < count; k++) {
       const a = rng() * Math.PI * 2, m = 0.3 + rng() * 0.4;
       sim.packet(rng() * sim.w, rng() * sim.h, Math.cos(a) * m, Math.sin(a) * m, s, s);
@@ -176,7 +177,7 @@ function createQuantum(w, h) {
         next.Re[di] = sim.Re[si]; next.Im[di] = sim.Im[si]; next.wall[di] = sim.wall[si]; next.Vs[di] = sim.Vs[si]; next.damp[di] = sim.damp[si];
       }
     }
-    next.gain = sim.gain; next.hasDamp = sim.hasDamp; next.reversed = sim.reversed;
+    next.gain = sim.gain; next.hasDamp = sim.hasDamp; next.reversed = sim.reversed; next.zoom = sim.zoom;
     next.sync();
     return next;
   };
