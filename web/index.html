@@ -444,7 +444,7 @@
             <button class="chip" type="button" data-size="medium" aria-pressed="false">Medium</button>
             <button class="chip" type="button" data-size="small" aria-pressed="false">Small</button>
           </div>
-          <p class="note">How big the garden's spots and stripes grow; the dish always fills the window. The heart, the quantum dish and the mould keep one size.</p>
+          <p class="note">How big the patterns grow; the dish always fills the window. The heart, the quantum dish and the mould start again on a finer grid, which is more work for the processor.</p>
         </div>
       </section>
 
@@ -834,6 +834,7 @@ function createQuantum(w, h) {
     XL: new Int32Array(w), XR: new Int32Array(w),
     gain: 1, screen: new Float32Array(h), total: 0,
     reversed: false,   // running backwards: what is stored is the conjugate of what is shown
+    zoom: 1,           // how fine the grid is, as a share of a full-size one's cells (0.5 on a grid twice as fine)
   };
   for (let x = 0; x < w; x++) { sim.XL[x] = (x - 1 + w) % w; sim.XR[x] = (x + 1) % w; }
 
@@ -982,7 +983,7 @@ function createQuantum(w, h) {
 
   sim.seed = function (count, rng) {
     rng = rng || Math.random;
-    const s = Math.max(5, Math.min(sim.w, sim.h) * 0.04);
+    const s = Math.max(5, Math.min(sim.w, sim.h) * sim.zoom * 0.04);   // as wide in cells on a finer grid, so smaller
     for (let k = 0; k < count; k++) {
       const a = rng() * Math.PI * 2, m = 0.3 + rng() * 0.4;
       sim.packet(rng() * sim.w, rng() * sim.h, Math.cos(a) * m, Math.sin(a) * m, s, s);
@@ -999,7 +1000,7 @@ function createQuantum(w, h) {
         next.Re[di] = sim.Re[si]; next.Im[di] = sim.Im[si]; next.wall[di] = sim.wall[si]; next.Vs[di] = sim.Vs[si]; next.damp[di] = sim.damp[si];
       }
     }
-    next.gain = sim.gain; next.hasDamp = sim.hasDamp; next.reversed = sim.reversed;
+    next.gain = sim.gain; next.hasDamp = sim.hasDamp; next.reversed = sim.reversed; next.zoom = sim.zoom;
     next.sync();
     return next;
   };
@@ -1513,6 +1514,7 @@ function hueRGB(hue) {
     paused: false, erase: false, stir: false, atlas: false, preset: 0, size: 'large',
     palette: 0, material: 0, brushHue: null, strokePig: null,
     chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null,
+    setup: 0,   // the preset the heart, the quantum dish or the mould was last set up with, though a slider has moved since
     tilt: { x: 0, y: 0, tx: 0, ty: 0 }
   };
   var heart = { pace: false, bpm: 60, lastPace: 0, beatHue: 10 };
@@ -1522,33 +1524,41 @@ function hueRGB(hue) {
   var sim = null, flow = null, img = null, pix32 = null, lut = new Uint32Array(256);
 
   function gridFor(w, h) {
-    var longSide = Math.max(160, Math.min(300, Math.round(Math.max(w, h) / 3)));
+    var longSide = Math.round(Math.max(160, Math.min(300, Math.round(Math.max(w, h) / 3))) / gridZoom());
     var gw, gh;
     if (w >= h) { gw = longSide; gh = Math.max(60, Math.round(longSide * h / w)); }
     else { gh = longSide; gw = Math.max(60, Math.round(longSide * w / h)); }
     return { w: gw, h: gh };
   }
-  // The pattern's size. The grid stays as it is, already as fine as the processor can step in a frame; a smaller
-  // size slows diffusion instead, by the square of the scale, so every length in the pattern shrinks by the scale
-  // and the dish still fills the window. Much below half, spots and stripes are a few cells across and lock to
-  // the grid's square cells.
+  // The pattern's size. The garden's grid stays as it is, already as fine as the processor can step in a frame; a
+  // smaller size slows diffusion instead, by the square of the scale, so every length in the pattern shrinks by the
+  // scale and the dish still fills the window. Much below half, spots and stripes are a few cells across and lock
+  // to the grid's square cells.
+  // The heart's wave fronts, the quantum dish's waves and the mould's veins are already only a few cells across, so
+  // slowing them down would leave them smaller than the grid can draw. They zoom out on a finer grid instead: their
+  // patterns keep their size in cells, and a smaller size fits more cells into the window, at about four times
+  // the work per step at Small.
   var SIZES = { large: 1, medium: 0.7, small: 0.5 };
   function patternScale() { return SIZES[state.size] || 1; }
-  // A new dish of the current chemistry: the garden gets seeds, the heart gets its first preset.
+  function gridZoom() { return state.chem === 'garden' ? 1 : patternScale(); }
+  // A new dish of the current chemistry: the garden gets seeds, the others are set up as their preset does, or as
+  // the last one did once a slider has moved.
   function freshSim(w, h) {
+    var p = state.preset >= 0 ? state.preset : state.setup;
     if (state.chem === 'heart') {
       var s = createHeart(w, h);
-      applyHeartPreset(s, state.preset >= 0 && state.preset < HPRESETS.length ? state.preset : 0);
+      applyHeartPreset(s, p < HPRESETS.length ? p : 0);
       return s;
     }
     if (state.chem === 'quantum') {
       var qs = createQuantum(w, h);
-      applyQuantumPreset(qs, state.preset >= 0 && state.preset < QPRESETS.length ? state.preset : 0);
+      qs.zoom = gridZoom();
+      applyQuantumPreset(qs, p < QPRESETS.length ? p : 0);
       return qs;
     }
     if (state.chem === 'mould') {
       var ms = createMould(w, h);
-      applyMouldPreset(ms, state.preset >= 0 && state.preset < MPRESETS.length ? state.preset : 0);
+      applyMouldPreset(ms, p < MPRESETS.length ? p : 0);
       return ms;
     }
     var g = createSim(w, h);
@@ -1561,13 +1571,13 @@ function hueRGB(hue) {
   }
   function applyQuantumPreset(s, i) {
     var p = QPRESETS[i];
-    state.qV0 = p.V0; state.qSigma = p.sigma; state.preset = i;
+    state.qV0 = p.V0; state.qSigma = p.sigma; state.preset = state.setup = i;
     s.clear();
     p.setup(s);
   }
   function applyHeartPreset(s, i) {
     var p = HPRESETS[i];
-    state.hb = p.b; state.hrec = p.rec; state.preset = i;
+    state.hb = p.b; state.hrec = p.rec; state.preset = state.setup = i;
     heart.pace = !!p.pace; if (p.bpm) heart.bpm = p.bpm;
     heart.lastPace = 0;
     s.clear();
@@ -1575,7 +1585,7 @@ function hueRGB(hue) {
   }
   function applyMouldPreset(s, i) {
     var p = MPRESETS[i];
-    state.mp = p; state.mso = p.so; state.mdecay = p.decay; state.preset = i;
+    state.mp = p; state.mso = p.so; state.mdecay = p.decay; state.preset = state.setup = i;
     s.clear();
     p.setup(s, p);
   }
@@ -2366,7 +2376,8 @@ void main() {
   // The drag is the throw: its direction is the particle's, its length the speed. A tap is a particle at rest.
   function throwPacket() {
     if (!throwStart || !sim || sim.kind !== 'quantum') { throwStart = null; return; }
-    var dx = throwLast.x - throwStart.x, dy = throwLast.y - throwStart.y, L = Math.sqrt(dx * dx + dy * dy);
+    // measured in cells of a full-size grid, so the same throw makes the same particle at every size
+    var z = gridZoom(), dx = (throwLast.x - throwStart.x) * z, dy = (throwLast.y - throwStart.y) * z, L = Math.sqrt(dx * dx + dy * dy);
     var k = L < 1.5 ? 0 : Math.min(0.9, Math.max(0.15, L / 60));
     var kx = L < 1.5 ? 0 : dx / L * k, ky = L < 1.5 ? 0 : dy / L * k;
     if (sim.reversed) setRewind(false);   // a new particle sets time going forwards again
@@ -2492,7 +2503,7 @@ void main() {
     showHint(C.hint, 6000);
     buildPresets();
     state.atlas = false; revive = false; if (flow) flow.clear();
-    if (sim) sim = freshSim(sim.w, sim.h);
+    if (sim) { sim = null; setupGrid(); }   // on its own grid: the heart, the quantum dish and the mould zoom out on a finer one
     if (kind === 'garden') { state.preset = 0; state.f = PRESETS[0].f; state.k = PRESETS[0].k; }
     ecgBuf.fill(0);
     try { localStorage.setItem('garden.chem', kind); } catch (e) {}
@@ -2846,6 +2857,7 @@ void main() {
   // ---- the pattern's size, remembered like the tab ----
   function setSize(name) {
     if (typeof SIZES[name] !== 'number') name = 'large';   // Fill, from when Size shrank the dish, was the full-size pattern
+    var before = patternScale();
     state.size = name;
     var chips = $('sizes').querySelectorAll('.chip');
     for (var i = 0; i < chips.length; i++) chips[i].setAttribute('aria-pressed', chips[i].getAttribute('data-size') === name ? 'true' : 'false');
@@ -2858,7 +2870,20 @@ void main() {
       sim.scale = patternScale();
       if (state.atlas) { sim.clear(); seedAtlas(sim); if (flow) flow.clear(); }
       else { if (r === 0.5) sim.halve(); revive = !emptyDish(sim); }
-    }
+    } else if (sim && sim.kind !== 'garden' && patternScale() !== before) restartDish();
+  }
+  // The heart, the quantum dish and the mould start again on a grid for the new size, set up as their last preset
+  // set them up, with the sliders where they were. Carried over to the new grid, their waves, packets and veins
+  // would stay the old size.
+  function restartDish() {
+    var keep = { preset: state.preset, hb: state.hb, hrec: state.hrec, pace: heart.pace, bpm: heart.bpm,
+                 qV0: state.qV0, qSigma: state.qSigma, mso: state.mso, mdecay: state.mdecay };
+    sim = null;
+    setupGrid();
+    state.preset = keep.preset; state.hb = keep.hb; state.hrec = keep.hrec; heart.pace = keep.pace; heart.bpm = keep.bpm;
+    state.qV0 = keep.qV0; state.qSigma = keep.qSigma; state.mso = keep.mso; state.mdecay = keep.mdecay;
+    ecgBuf.fill(0);
+    syncUI();
   }
   $('sizes').addEventListener('click', function (ev) {
     var b = ev.target.closest ? ev.target.closest('.chip') : null;
