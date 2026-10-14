@@ -509,7 +509,7 @@
         <li>Choose Mitosis, clear the dish, and paint one dot. It divides. Then they divide.</li>
         <li>Paint a line in Fingerprint and watch it fold.</li>
         <li>Drag the point on the map slowly along the arc. Everything interesting lives next to that curve, and just off it everything dies.</li>
-        <li>Switch presets mid-growth. The old pattern becomes the seed for the new one.</li>
+        <li>Switch presets mid-growth. The old pattern becomes the seed for the new one, and when none of it can live there, new seeds go in.</li>
         <li>Choose Atlas and point at the dish to find where each pattern lives on the map. Then choose Coral and watch the whole atlas become coral.</li>
         <li>Stir Spots in a slow circle. The spots smear into a spiral, then pinch back into spots along it.</li>
         <li>Paint two colours side by side in Coral and see where the border settles. Then do it in Storm.</li>
@@ -581,9 +581,10 @@ function createSim(w, h) {
           const ng = bg + (0.5 * lapG + grow * bg);
           const nb = bb + (0.5 * lapB + grow * bb);
           A2[i] = na < 0 ? 0 : (na > 1 ? 1 : na);
-          R2[i] = nr < 0 ? 0 : (nr > 1 ? 1 : nr);
-          G2[i] = ng < 0 ? 0 : (ng > 1 ? 1 : ng);
-          Bl2[i] = nb < 0 ? 0 : (nb > 1 ? 1 : nb);
+          // B, the shares' sum, stays at most 1 as in the ordinary model (capping each share let B reach 3, where
+          // the step runs away and floods the dish)
+          const pr = nr < 0 ? 0 : nr, pg = ng < 0 ? 0 : ng, pb = nb < 0 ? 0 : nb, sb = pr + pg + pb, sc = sb > 1 ? 1 / sb : 1;
+          R2[i] = pr * sc; G2[i] = pg * sc; Bl2[i] = pb * sc;
         }
       }
       sim.A = A2; sim.R = R2; sim.G = G2; sim.Bl = Bl2;
@@ -2228,6 +2229,10 @@ void main() {
     ctx.putImageData(img, 0, 0);
   }
   var lastSimMs = 0;
+  // A preset grows out of whatever is in the dish, and some patterns can't grow out of others (Storm into Spots,
+  // say): the old one dies and nothing takes its place. Then the dish is sown again, once.
+  var revive = false, reviveTick = 0;
+  function emptyDish(s) { var R = s.R, G = s.G, B = s.Bl; for (var i = 0; i < R.length; i++) if (R[i] + G[i] + B[i] > 0.02) return false; return true; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
   function frame(now) {
     if (!sim) setupGrid();
@@ -2266,6 +2271,7 @@ void main() {
           if (flow && flow.w === sim.w && flow.h === sim.h && flow.step(0.982, 8)) sim.carryBy(flow);
           if (state.atlas) sim.step(fL - state.f, kL - state.k, state.stepsEff);
           else sim.step(fL, kL, state.stepsEff);
+          if (revive && ++reviveTick % 20 === 0 && emptyDish(sim)) { revive = false; sim.seed(7); showHint('Nothing survived the change, so new seeds went in', 5000); }
         }
         lastSimMs = performance.now() - t0;
         // keep the frame affordable on slower devices, and follow the music's pace
@@ -2292,6 +2298,7 @@ void main() {
   }
   function brush(p) {
     var r = Math.max(2, 13 / p.scale);
+    if (state.erase) revive = false;   // an empty dish you erased stays empty
     if (lastPt) {
       var dx = p.x - lastPt.x, dy = p.y - lastPt.y, d = Math.sqrt(dx * dx + dy * dy), n = Math.max(1, Math.ceil(d / (r * 0.5)));
       for (var i = 1; i <= n; i++) sim.paint(lastPt.x + dx * i / n, lastPt.y + dy * i / n, r, state.erase, state.strokePig);
@@ -2477,7 +2484,7 @@ void main() {
     $('swatches').hidden = !(PALETTES[state.palette].lineage && C.swatches);
     showHint(C.hint, 6000);
     buildPresets();
-    state.atlas = false; if (flow) flow.clear();
+    state.atlas = false; revive = false; if (flow) flow.clear();
     if (sim) sim = freshSim(sim.w, sim.h);
     if (kind === 'garden') { state.preset = 0; state.f = PRESETS[0].f; state.k = PRESETS[0].k; }
     ecgBuf.fill(0);
@@ -2503,6 +2510,7 @@ void main() {
       }
     }
     setAtlas(state.preset >= 0 && !!PRESETS[state.preset].atlas);
+    revive = typeof presetIdx === 'number' && !state.atlas && !!sim && sim.kind === 'garden' && !emptyDish(sim);
     syncUI();
   }
   // Atlas on: every cell gets its own feed and kill, and the dish starts again from a spectrum of seeds.
@@ -2650,7 +2658,7 @@ void main() {
     syncRewind();
   }
   $('rewindBtn').addEventListener('click', function () { if (sim && sim.kind === 'quantum') setRewind(!sim.reversed); });
-  $('clear').addEventListener('click', function () { if (sim) sim.clear(); if (flow) flow.clear(); syncRewind(); });
+  $('clear').addEventListener('click', function () { if (sim) sim.clear(); if (flow) flow.clear(); revive = false; syncRewind(); });
   $('seed').addEventListener('click', function () {
     if (!sim) return;
     if (sim.kind === 'heart') { sim.shock(); music.beat = 1; }
@@ -2701,13 +2709,14 @@ void main() {
       }
       sim.sync();
     } else {
-      // the garden gets the picture as dots, more of them where it is darker: a solid fill starves itself in
-      // Mitosis, Spots and Pulses, but dots grow in every preset
+      // the garden gets the picture as dots, more of them where it is darker, but never more than about one in
+      // three places: dots packed closer grow into one sheet within a second, and a sheet starves itself in
+      // Mitosis, Spots and Pulses, where sparse dots live
       var sp = 7;
       for (var y = sp / 2; y < h; y += sp) for (var x = sp / 2; x < w; x += sp) {
         var jx = x + (Math.random() - 0.5) * sp * 0.5, jy = y + (Math.random() - 0.5) * sp * 0.5;
         var j = Math.min(h - 1, Math.round(jy)) * w + Math.min(w - 1, Math.round(jx)), d = darkAt(j);
-        if (d > 0.15 && Math.random() < d) sim.paint(jx, jy, 2, false, pigAt(j));
+        if (d > 0.15 && Math.random() < 0.3 * Math.min(1, d)) sim.paint(jx, jy, 2, false, pigAt(j));
       }
     }
     hint.classList.add('gone');
