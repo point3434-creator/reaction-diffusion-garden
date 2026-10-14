@@ -16,6 +16,14 @@ uniform float uBeat;
 uniform float uHue;
 uniform float uHeart;
 uniform vec2 uTilt;
+uniform int uLight;        // 0 the room's own lights, 1 lamps over the dish, 2 a low sun going round
+uniform vec4 uLamp[3];     // a lamp: where it hangs over the dish (uv), its height in cells, and 1 if it is on
+uniform vec3 uLampCol[3];
+uniform float uLampR;      // a lamp's marker, in cells
+uniform vec3 uSun;         // toward the sun
+uniform vec3 uSunCol;
+uniform int uPass;         // 1 draws the domes' heights for the rays, into uHeight; 0 draws the dish
+uniform sampler2D uHeight; // those heights, smoothed, at twice the grid's resolution
 in vec2 vUv;
 out vec4 outColor;
 
@@ -64,6 +72,49 @@ float hash12(vec2 p) {
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
 }
+// A dome as the rays see it: the same height, but without the vertical wall at its edge, which would make a
+// ragged edge on every shadow.
+float blockerOf(float b) {
+  float q = clamp((b - E0 + 0.02) / (BPK - E0 + 0.02), 0.0, 1.0);
+  return q * (2.0 - q);
+}
+// How much of a light gets here, ray-traced: march from the surface toward the light across the height map and
+// see how close the domes in between come to the ray. 1 in full light, 0 behind a dome, and soft across a band as
+// wide as the light looks from here (spread, as a slope). d points at the light, in cells, with z up.
+float lightReach(vec2 uv, float z0, vec3 d, float spread) {
+  if (d.z <= 0.0) return 0.0;
+  float run = length(d.xy);
+  if (run < 1e-3) return 1.0;
+  float rise = d.z / run;
+  // past tMax the ray is above every dome, so nothing further on can block it
+  float tMax = min(run, (uBump - z0) / rise);
+  if (tMax <= 0.0) return 1.0;
+  vec2 dir = d.xy / run / uTexSize;
+  // the steps start a third of a cell apart, where a dome's steep wall decides the shadow's edge, and grow by a
+  // fifth each time, so the twenty-first lands about 74 cells out
+  float dt = 0.33, t = dt;
+  float vis = 1.0;
+  for (int k = 0; k < 21; k++) {
+    if (t > tMax) break;
+    vec2 at = uv + dir * t;
+    float hs = texture(uHeight, vec2(at.x, 1.0 - at.y)).r * uBump;
+    vis = min(vis, clamp(0.5 + 0.5 * (z0 + 0.3 + rise * t - hs) / ((t + 1.0) * spread), 0.0, 1.0));
+    if (vis <= 0.0) break;
+    dt *= 1.2;
+    t += dt;
+  }
+  return vis * vis * (3.0 - 2.0 * vis);
+}
+// How shiny each material is under a lamp: the strength of the lamp's own highlight on it.
+float glossOf(int m) {
+  if (m == 0 || m == 8 || m == 12) return 1.0;
+  if (m == 1) return 1.3;
+  if (m == 10) return 0.9;
+  if (m == 3) return 0.35;
+  if (m == 5) return 0.0;
+  if (m == 2 || m == 6 || m == 7) return 0.1;
+  return 0.2;
+}
 float vnoise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
@@ -99,6 +150,9 @@ vec3 flameCol(float x, vec3 hue) {
 }
 
 void main() {
+  // the heights the rays read, from the smooth (bicubic) field: read from the grid itself, every shadow's edge
+  // would be ragged a cell at a time
+  if (uPass == 1) { outColor = vec4(blockerOf(bsum(fieldAt(vUv))), 0.0, 0.0, 1.0); return; }
   vec2 px = 1.0 / uTexSize;
   vec4 c = fieldAt(vUv);
   float b = bsum(c);
@@ -113,6 +167,31 @@ void main() {
   // the lights live in the room; tilting the phone moves them across the dish
   vec3 L = normalize(vec3(-0.45 + uTilt.x, -0.55 + uTilt.y, 0.7));
   vec3 Vv = vec3(0.0, 0.0, 1.0);
+  // Lamps and the sun light the dish themselves. E is the light arriving here as a multiple of the room's own,
+  // after a ray toward each light has looked for domes in the way; glint is the lamps' own highlights.
+  vec3 E = vec3(1.0), glint = vec3(0.0);
+  float sunReach = 1.0;
+  float z0 = h * uBump;
+  if (uLight == 1) {
+    E = vec3(mix(0.16, 0.34, uLightTheme));
+    vec3 toward = vec3(0.0, 0.0, 0.02);
+    for (int i = 0; i < 3; i++) {
+      if (uLamp[i].w < 0.5) continue;
+      vec3 d = vec3((uLamp[i].xy - vUv) * uTexSize, uLamp[i].z - z0);
+      float r2 = dot(d, d);
+      vec3 Li = d * inversesqrt(r2);
+      // inverse square, 1 at the lamp's foot; the lamp is about a sixth of its height across
+      vec3 Ii = uLampCol[i] * (uLamp[i].z * uLamp[i].z / r2) * lightReach(vUv, z0, d, 0.08 * uLamp[i].z * inversesqrt(r2) + 0.01);
+      E += Ii * max(dot(N, Li), 0.0) * mix(4.5, 2.1, uLightTheme);
+      toward += Li * dot(Ii, vec3(0.3, 0.5, 0.2));
+      glint += Ii * pow(max(dot(N, normalize(Li + Vv)), 0.0), 300.0);
+    }
+    L = normalize(toward);
+  } else if (uLight == 2) {
+    sunReach = lightReach(vUv, z0, uSun * 4000.0, 0.05);
+    E = mix(vec3(0.34, 0.40, 0.52), vec3(0.45, 0.48, 0.56), uLightTheme) + uSunCol * sunReach * max(dot(N, uSun), 0.0) * mix(1.7, 1.25, uLightTheme);
+    L = uSun;
+  }
   vec3 H = normalize(L + Vv);
   vec3 L2 = normalize(vec3(0.6 + 0.5 * uTilt.x, -0.3 + 0.5 * uTilt.y, 0.55));
   vec3 H2 = normalize(L2 + Vv);
@@ -122,6 +201,9 @@ void main() {
   float spec2 = pow(max(dot(N, H2), 0.0), 14.0);
   float fres = 1.0 - clamp(N.z, 0.0, 1.0);
   float caus = pow(max(dot(N, Lc), 0.0), 22.0);
+  // under lamps each lamp makes its own highlight; in sunshine the sun's goes out where a dome hides the sun
+  spec *= uLight == 1 ? 0.0 : sunReach;
+  spec2 *= uLight == 0 ? 1.0 : 0.5;
 
   float m = max(c.r, max(c.g, c.b));
   vec3 pig = m > 1e-5 ? c.rgb / m : vec3(1.0);
@@ -135,7 +217,7 @@ void main() {
 
   float mask = smoothstep(E0 - 0.012, E0 + 0.012, b);
   float bS = bsum(texture(uField, vUv - vec2(1.3, 1.5) * px));
-  float shadow = smoothstep(E0 - 0.05, E0 + 0.01, bS) * (1.0 - mask);
+  float shadow = smoothstep(E0 - 0.05, E0 + 0.01, bS) * (1.0 - mask) * (uLight == 0 ? 1.0 : 0.0);   // lamps and sun cast real ones
   float halo = smoothstep(E0 - 0.07, E0, b) * (1.0 - mask);
   vec3 bg = uBg * (1.0 - shadow * mix(0.45, 0.22, lt)) + tint * halo * 0.10 * (1.0 - lt);
   float grain = vnoise(gl_FragCoord.xy * 0.45) * 0.6 + vnoise(gl_FragCoord.xy * 0.12) * 0.4;
@@ -422,5 +504,29 @@ void main() {
     }
     mask *= 1.0 - scar;
   }
-  outColor = vec4(mix(bg, col, mask), 1.0);
+  vec3 outc = mix(bg, col, mask);
+  if (uLight > 0) {
+    // what glows keeps most of its own light; everything else is lit by what arrives, and a dark floor is lifted a
+    // little so that light and shadow show on it
+    float emis = (uMat == 4 || uMat == 7 || uMat == 9 || uMat == 11) ? 0.6 : 0.0;
+    outc += vec3(0.065, 0.07, 0.075) * (1.0 - mask) * (1.0 - uLightTheme) * (1.0 - emis / 0.6);
+    outc = outc * mix(E, vec3(1.0), emis) + glint * mask * glossOf(uMat) * mix(1.6, 1.0, uLightTheme);
+    // up to the room's own brightness nothing changes; brighter light rolls off toward white
+    float Y = dot(outc, vec3(0.2126, 0.7152, 0.0722));
+    float Yc = Y < 0.75 ? Y : 0.75 + 0.25 * (1.0 - exp(-(Y - 0.75) * 4.0));
+    outc = outc * (Yc / max(Y, 1e-4));
+    outc = mix(outc, vec3(1.0), smoothstep(0.9, 1.0, Yc) * smoothstep(1.0, 3.0, Y) * 0.6);
+  }
+  if (uLight == 1) {
+    // each lamp, seen from above: a bulb in its own colour, a glow, and a ring to take hold of
+    vec3 ringCol = mix(vec3(1.0), vec3(0.12), uLightTheme);
+    for (int i = 0; i < 3; i++) {
+      if (uLamp[i].w < 0.5) continue;
+      float dl = length((uLamp[i].xy - vUv) * uTexSize) / uLampR;
+      outc += uLampCol[i] * exp(-dl * dl * 0.35) * 0.3;
+      outc = mix(outc, mix(uLampCol[i], vec3(1.0), 0.7), 1.0 - smoothstep(0.4, 0.58, dl));
+      outc = mix(outc, ringCol, (smoothstep(0.84, 0.94, dl) - smoothstep(1.0, 1.1, dl)) * 0.85);
+    }
+  }
+  outColor = vec4(clamp(outc, 0.0, 1.0), 1.0);
 }
