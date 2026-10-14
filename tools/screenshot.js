@@ -1,12 +1,12 @@
 // Open the page headlessly, pick a chemistry, preset and material, let it run, and save a screenshot.
 // npm install && node tools/screenshot.js [chemistry] [preset] [material] [theme] [width] [height] [seconds] [size]
-//   e.g. node tools/screenshot.js quantum "Double slit" Contour dark 1280 800 8 medium
+//   e.g. node tools/screenshot.js garden Spots Contour dark 1280 800 8 small
 // Software WebGL is slow (a few frames a second), so the dish evolves less than it would live.
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
-const [chem = 'garden', preset = 'Coral', material = 'Glass', theme = 'dark', width = '1000', height = '640', seconds = '6', size = 'fill'] = process.argv.slice(2);
+const [chem = 'garden', preset = 'Coral', material = 'Glass', theme = 'dark', width = '1000', height = '640', seconds = '6', size = 'large'] = process.argv.slice(2);
 const OUT = path.join(__dirname, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -21,10 +21,10 @@ fs.mkdirSync(OUT, { recursive: true });
   await page.getByRole('button', { name: preset, exact: true }).click();
   await page.getByRole('tab', { name: 'Look' }).click();
   await page.getByRole('button', { name: material, exact: true }).click();
-  if (size !== 'fill') await page.getByRole('button', { name: size[0].toUpperCase() + size.slice(1), exact: true }).click();
+  if (size !== 'large') await page.getByRole('button', { name: size[0].toUpperCase() + size.slice(1), exact: true }).click();
   await page.getByRole('tab', { name: 'Dish' }).click();
   await page.waitForTimeout(+seconds * 1000);
-  const file = path.join(OUT, `${chem}-${preset}-${material}-${theme}${size === 'fill' ? '' : '-' + size}.png`.replace(/\s+/g, '-').toLowerCase());
+  const file = path.join(OUT, `${chem}-${preset}-${material}-${theme}${size === 'large' ? '' : '-' + size}.png`.replace(/\s+/g, '-').toLowerCase());
   await page.screenshot({ path: file });
   console.log('saved', path.relative(process.cwd(), file));
   await browser.close();

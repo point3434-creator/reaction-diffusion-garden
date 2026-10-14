@@ -126,10 +126,6 @@
   .recbadge i { width: 8px; height: 8px; border-radius: 50%; background: #E5484D; animation: recpulse 1.2s ease-in-out infinite; }
   @keyframes recpulse { 50% { opacity: 0.35; } }
 
-  /* A smaller dish: a pane in the middle of the stage, with the page showing round it */
-  .app:not([data-size="fill"]) .stage { background: var(--bg); }
-  .app:not([data-size="fill"]) .stage canvas { border-radius: 18px; box-shadow: var(--shadow); }
-
   /* Full screen: the bench goes, the dish takes the window, one quiet control brings it back */
   .unfocus {
     position: absolute; display: none; align-items: center; justify-content: center;
@@ -214,6 +210,7 @@
 
   /* The chemistry switch */
   .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 3px; border-radius: 12px; background: var(--chip); }
+  #sizes { grid-template-columns: repeat(3, 1fr); }
   .seg .chip { justify-content: center; border-radius: 9px; background: transparent; padding: 7px 6px; }
   .seg .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 
@@ -300,7 +297,7 @@
 </style>
 </head>
 <body>
-<main class="app" data-size="fill">
+<main class="app">
   <section class="stage" aria-label="The dish">
     <canvas id="view" aria-label="Reaction–diffusion simulation. Paint on it with a finger or mouse."></canvas>
     <div class="hint" id="hint">Paint on it with a finger or mouse</div>
@@ -442,13 +439,12 @@
         </div>
         <div class="group">
           <h3 class="eyebrow">Size</h3>
-          <div class="seg" id="sizes" role="group" aria-label="Dish size">
-            <button class="chip" type="button" data-size="fill" aria-pressed="true">Fill</button>
-            <button class="chip" type="button" data-size="large" aria-pressed="false">Large</button>
+          <div class="seg" id="sizes" role="group" aria-label="Pattern size">
+            <button class="chip" type="button" data-size="large" aria-pressed="true">Large</button>
             <button class="chip" type="button" data-size="medium" aria-pressed="false">Medium</button>
             <button class="chip" type="button" data-size="small" aria-pressed="false">Small</button>
           </div>
-          <p class="note">On a big screen the dish can sit in the middle of the window instead of filling it, and the pattern gets finer as the dish gets smaller.</p>
+          <p class="note">How big the garden's spots and stripes grow; the dish always fills the window. The heart, the quantum dish and the mould keep one size.</p>
         </div>
       </section>
 
@@ -546,6 +542,7 @@ function createSim(w, h) {
   const n = w * h;
   const sim = {
     kind: 'garden', w, h,
+    scale: 1,   // the pattern's size: diffusion runs at scale², so every length in the pattern shrinks with it
     A: new Float32Array(n), R: new Float32Array(n), G: new Float32Array(n), Bl: new Float32Array(n),
     A2: new Float32Array(n), R2: new Float32Array(n), G2: new Float32Array(n), Bl2: new Float32Array(n),
     XL: new Int32Array(w), XR: new Int32Array(w),
@@ -557,7 +554,7 @@ function createSim(w, h) {
   // With an atlas, every cell reacts at its own feed and kill, and f and k are nudges added to them.
   sim.step = function (f, k, steps) {
     const { w, h, XL, XR, fMap, kMap } = sim;
-    const kf = k + f;
+    const kf = k + f, d2 = sim.scale * sim.scale, c4 = 0.2 * d2, c8 = 0.05 * d2;
     for (let s = 0; s < steps; s++) {
       const A = sim.A, R = sim.R, G = sim.G, Bl = sim.Bl;
       const A2 = sim.A2, R2 = sim.R2, G2 = sim.G2, Bl2 = sim.Bl2;
@@ -571,10 +568,10 @@ function createSim(w, h) {
           const ul = yu + xl, ur = yu + xr, dl = yd + xl, dr = yd + xr;
           const a = A[i], br = R[i], bg = G[i], bb = Bl[i];
           const b = br + bg + bb;
-          const lapA = -a + 0.2 * (A[l] + A[r] + A[u] + A[d]) + 0.05 * (A[ul] + A[ur] + A[dl] + A[dr]);
-          const lapR = -br + 0.2 * (R[l] + R[r] + R[u] + R[d]) + 0.05 * (R[ul] + R[ur] + R[dl] + R[dr]);
-          const lapG = -bg + 0.2 * (G[l] + G[r] + G[u] + G[d]) + 0.05 * (G[ul] + G[ur] + G[dl] + G[dr]);
-          const lapB = -bb + 0.2 * (Bl[l] + Bl[r] + Bl[u] + Bl[d]) + 0.05 * (Bl[ul] + Bl[ur] + Bl[dl] + Bl[dr]);
+          const lapA = c4 * (A[l] + A[r] + A[u] + A[d]) + c8 * (A[ul] + A[ur] + A[dl] + A[dr]) - d2 * a;
+          const lapR = c4 * (R[l] + R[r] + R[u] + R[d]) + c8 * (R[ul] + R[ur] + R[dl] + R[dr]) - d2 * br;
+          const lapG = c4 * (G[l] + G[r] + G[u] + G[d]) + c8 * (G[ul] + G[ur] + G[dl] + G[dr]) - d2 * bg;
+          const lapB = c4 * (Bl[l] + Bl[r] + Bl[u] + Bl[d]) + c8 * (Bl[ul] + Bl[ur] + Bl[dl] + Bl[dr]) - d2 * bb;
           const fi = fMap ? fMap[i] + f : f, kfi = fMap ? fi + kMap[i] + k : kf;
           const grow = a * b - kfi;          // per-unit rate for every species
           const na = a + (lapA - a * b * b + fi * (1 - a));
@@ -621,18 +618,20 @@ function createSim(w, h) {
     }
   };
 
-  // Scatter a few seeds, each in its own pigment.
+  // Scatter a few seeds, each in its own pigment. A smaller pattern gets smaller seeds, and more of them, so a
+  // dish fills as fast as at full size.
   sim.seed = function (count, rng) {
     rng = rng || Math.random;
-    const r = Math.max(2.5, Math.min(sim.w, sim.h) * 0.014);
-    for (let s = 0; s < count; s++) {
-      sim.paint(rng() * sim.w, rng() * sim.h, r * (0.7 + rng() * 0.8), false, huePigment(rng() * 360));
+    const sc = sim.scale, r = Math.max(2.5, Math.min(sim.w, sim.h) * 0.014) * sc, n = Math.round(count / (sc * sc));
+    for (let s = 0; s < n; s++) {
+      sim.paint(rng() * sim.w, rng() * sim.h, Math.max(1, r * (0.7 + rng() * 0.8)), false, huePigment(rng() * 360));
     }
   };
 
   // Resize the grid, keeping the pattern (nearest-neighbour).
   sim.resample = function (nw, nh) {
     const next = createSim(nw, nh);
+    next.scale = sim.scale;
     for (let y = 0; y < nh; y++) {
       const sy = Math.min(sim.h - 1, Math.floor(y * sim.h / nh));
       for (let x = 0; x < nw; x++) {
@@ -642,6 +641,25 @@ function createSim(w, h) {
       }
     }
     return next;
+  };
+
+  // Redraw the pattern at r times its size about the dish's centre, for a new pattern scale; smaller, it repeats,
+  // since the dish wraps. The dynamics at the new scale are the old ones scaled, so the pattern carries on.
+  sim.zoom = function (r) {
+    const { w, h } = sim, src = [sim.A, sim.R, sim.G, sim.Bl], dst = [sim.A2, sim.R2, sim.G2, sim.Bl2];
+    for (let y = 0; y < h; y++) {
+      const sy = (((h / 2 + (y + 0.5 - h / 2) / r - 0.5) % h) + h) % h, y0 = Math.floor(sy), fy = sy - y0, y1 = (y0 + 1) % h;
+      for (let x = 0; x < w; x++) {
+        const sx = (((w / 2 + (x + 0.5 - w / 2) / r - 0.5) % w) + w) % w, x0 = Math.floor(sx), fx = sx - x0, x1 = (x0 + 1) % w;
+        const a = y0 * w + x0, b = y0 * w + x1, c = y1 * w + x0, d = y1 * w + x1, i = y * w + x;
+        for (let f = 0; f < 4; f++) {
+          const S = src[f];
+          dst[f][i] = (S[a] * (1 - fx) + S[b] * fx) * (1 - fy) + (S[c] * (1 - fx) + S[d] * fx) * fy;
+        }
+      }
+    }
+    sim.A = dst[0]; sim.R = dst[1]; sim.G = dst[2]; sim.Bl = dst[3];
+    sim.A2 = src[0]; sim.R2 = src[1]; sim.G2 = src[2]; sim.Bl2 = src[3];
   };
 
   return sim;
@@ -1352,10 +1370,10 @@ function hueRGB(hue) {
   }
   // seeds on a jittered grid, coloured by feed, so the atlas reads as a spectrum from one end to the other
   function seedAtlas(s) {
-    var sp = 12;
+    var sc = s.scale, sp = 12 * sc;
     for (var y = sp / 2; y < s.h; y += sp) for (var x = sp / 2; x < s.w; x += sp) {
       var jx = x + (Math.random() - 0.5) * sp * 0.6, jy = y + (Math.random() - 0.5) * sp * 0.6;
-      s.paint(jx, jy, 2.2, false, huePigment(300 * atlasUV(s, jx, jy).u));
+      s.paint(jx, jy, Math.max(1, 2.2 * sc), false, huePigment(300 * atlasUV(s, jx, jy).u));
     }
   }
   // Heart presets: excitability is Barkley's b (lower fires more easily), recovery how fast tissue rests.
@@ -1493,7 +1511,7 @@ function hueRGB(hue) {
   }
   var state = {
     f: PRESETS[0].f, k: PRESETS[0].k, steps: 8, stepsEff: 8,
-    paused: false, erase: false, stir: false, atlas: false, preset: 0, size: 'fill',
+    paused: false, erase: false, stir: false, atlas: false, preset: 0, size: 'large',
     palette: 0, material: 0, brushHue: null, strokePig: null,
     chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null,
     tilt: { x: 0, y: 0, tx: 0, ty: 0 }
@@ -1511,26 +1529,12 @@ function hueRGB(hue) {
     else { gh = longSide; gw = Math.max(60, Math.round(longSide * w / h)); }
     return { w: gw, h: gh };
   }
-  // How much of the free part of the window the dish takes. Fill makes the dish the page; the others centre
-  // it in what the bench leaves, and because the grid is sized from pixels, a smaller dish is a finer one.
-  var SIZES = { fill: 1, large: 0.8, medium: 0.62, small: 0.46 };
-  function layoutDish() {
-    var f = typeof SIZES[state.size] === 'number' ? SIZES[state.size] : 1;
-    app.setAttribute('data-size', f < 1 ? state.size : 'fill');
-    if (f >= 1) {
-      canvas.style.left = canvas.style.top = canvas.style.width = canvas.style.height = '';
-      hint.style.left = hint.style.top = '';
-      return;
-    }
-    var r = stage.getBoundingClientRect(), narrow = narrowMQ.matches, m = narrow ? 12 : 16;
-    var x0 = m, y0 = m, x1 = r.width - m, y1 = r.height - m;
-    if (!state.focus) { if (narrow) y1 = r.height - 80; else x1 = r.width - 400 - m; }   // above the sheet's peek, or beside the bench
-    var w = Math.max(60, Math.round((x1 - x0) * f)), h = Math.max(60, Math.round((y1 - y0) * f));
-    var x = Math.round(x0 + (x1 - x0 - w) / 2), y = Math.round(y0 + (y1 - y0 - h) / 2);
-    canvas.style.left = x + 'px'; canvas.style.top = y + 'px'; canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-    if (w >= 420) { hint.style.left = (x + 14) + 'px'; hint.style.top = (y + 12) + 'px'; }   // the pill follows the dish's corner when it fits
-    else { hint.style.left = hint.style.top = ''; }
-  }
+  // The pattern's size. The grid stays as it is, already as fine as the processor can step in a frame; a smaller
+  // size slows diffusion instead, by the square of the scale, so every length in the pattern shrinks by the scale
+  // and the dish still fills the window. Much below half, spots and stripes are a few cells across and lock to
+  // the grid's square cells.
+  var SIZES = { large: 1, medium: 0.7, small: 0.5 };
+  function patternScale() { return SIZES[state.size] || 1; }
   // A new dish of the current chemistry: the garden gets seeds, the heart gets its first preset.
   function freshSim(w, h) {
     if (state.chem === 'heart') {
@@ -1549,6 +1553,7 @@ function hueRGB(hue) {
       return ms;
     }
     var g = createSim(w, h);
+    g.scale = patternScale();
     if (state.atlas) { buildAtlas(g); seedAtlas(g); } else g.seed(7);
     return g;
   }
@@ -1582,7 +1587,6 @@ function hueRGB(hue) {
              eat: typeof p.eat === 'number' ? p.eat : MP_BASE.eat, scentW: MP_BASE.scentW, scentFade: MP_BASE.scentFade };
   }
   function setupGrid() {
-    layoutDish();
     var r = canvas.getBoundingClientRect();
     if (r.width < 10 || r.height < 10) return;
     var g = gridFor(r.width, r.height);
@@ -2292,13 +2296,16 @@ void main() {
     var r = canvas.getBoundingClientRect();
     return { x: (ev.clientX - r.left) / r.width * sim.w, y: (ev.clientY - r.top) / r.height * sim.h, scale: r.width / sim.w };
   }
-  function brushRadius() { var rect = canvas.getBoundingClientRect(); return Math.max(2, 13 / (rect.width / sim.w)); }
+  // The brush is about a fingertip across, in cells; in the garden it shrinks with the pattern, since a dab as big
+  // as a full-size one is a blob a small pattern can't feed, and it starves.
+  function brushCells(pxPerCell) { return Math.max(2, 13 / pxPerCell) * (sim.kind === 'garden' ? sim.scale : 1); }
+  function brushRadius() { var rect = canvas.getBoundingClientRect(); return brushCells(rect.width / sim.w); }
   function strokeHue() {
     if (state.brushHue !== null) return state.brushHue;
     return music.on ? music.hue : Math.random() * 360;
   }
   function brush(p) {
-    var r = Math.max(2, 13 / p.scale);
+    var r = brushCells(p.scale);
     if (state.erase) revive = false;   // an empty dish you erased stays empty
     if (lastPt) {
       var dx = p.x - lastPt.x, dy = p.y - lastPt.y, d = Math.sqrt(dx * dx + dy * dy), n = Math.max(1, Math.ceil(d / (r * 0.5)));
@@ -2713,11 +2720,11 @@ void main() {
       // the garden gets the picture as dots, more of them where it is darker, but never more than about one in
       // three places: dots packed closer grow into one sheet within a second, and a sheet starves itself in
       // Mitosis, Spots and Pulses, where sparse dots live
-      var sp = 7;
+      var sc = sim.scale, sp = 7 * sc;   // in the pattern's units, so a smaller pattern gets finer dots
       for (var y = sp / 2; y < h; y += sp) for (var x = sp / 2; x < w; x += sp) {
         var jx = x + (Math.random() - 0.5) * sp * 0.5, jy = y + (Math.random() - 0.5) * sp * 0.5;
         var j = Math.min(h - 1, Math.round(jy)) * w + Math.min(w - 1, Math.round(jx)), d = darkAt(j);
-        if (d > 0.15 && Math.random() < 0.3 * Math.min(1, d)) sim.paint(jx, jy, 2, false, pigAt(j));
+        if (d > 0.15 && Math.random() < 0.3 * Math.min(1, d)) sim.paint(jx, jy, Math.max(1, 2 * sc), false, pigAt(j));
       }
     }
     hint.classList.add('gone');
@@ -2837,22 +2844,30 @@ void main() {
     selectTab(t);
   })();
 
-  // ---- the dish's size on the screen, remembered like the tab ----
+  // ---- the pattern's size, remembered like the tab ----
   function setSize(name) {
-    if (typeof SIZES[name] !== 'number') name = 'fill';
+    if (typeof SIZES[name] !== 'number') name = 'large';   // Fill, from when Size shrank the dish, was the full-size pattern
     state.size = name;
     var chips = $('sizes').querySelectorAll('.chip');
     for (var i = 0; i < chips.length; i++) chips[i].setAttribute('aria-pressed', chips[i].getAttribute('data-size') === name ? 'true' : 'false');
     try { localStorage.setItem('garden.size', name); } catch (e) {}
-    if (sim) setupGrid();
+    if (sim && sim.kind === 'garden' && sim.scale !== patternScale()) {
+      // the dish takes the new size at once. Slowing diffusion alone would leave full-size spots that a small pattern
+      // can't feed (Mitosis dies going from Large to Small), so the pattern is redrawn at the new size and carries
+      // on; the atlas starts again from its spectrum of seeds.
+      var r = patternScale() / sim.scale;
+      sim.scale = patternScale();
+      if (state.atlas) { sim.clear(); seedAtlas(sim); if (flow) flow.clear(); }
+      else sim.zoom(r);
+    }
   }
   $('sizes').addEventListener('click', function (ev) {
     var b = ev.target.closest ? ev.target.closest('.chip') : null;
     if (b && b.getAttribute('data-size') !== state.size) setSize(b.getAttribute('data-size'));
   });
   (function () {
-    var s = 'fill';
-    try { s = localStorage.getItem('garden.size') || 'fill'; } catch (e) {}
+    var s = 'large';
+    try { s = localStorage.getItem('garden.size') || 'large'; } catch (e) {}
     setSize(s);
   })();
 
