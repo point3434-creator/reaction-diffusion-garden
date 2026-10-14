@@ -112,6 +112,19 @@
           <h3 class="eyebrow">Made of</h3>
           <div class="chips" id="mats" role="group" aria-label="Material"></div>
         </div>
+        <div class="group" id="lights">
+          <h3 class="eyebrow">Light</h3>
+          <div class="seg" id="lightModes" role="group" aria-label="Light">
+            <button class="chip" type="button" data-light="studio" aria-pressed="true">Studio</button>
+            <button class="chip" type="button" data-light="lamp" aria-pressed="false">Lamp</button>
+            <button class="chip" type="button" data-light="stage" aria-pressed="false">Stage</button>
+            <button class="chip" type="button" data-light="sun" aria-pressed="false">Sun</button>
+          </div>
+          <div class="sliders lampwrap" id="lampWrap" hidden>
+            <label><span>lamp height</span> <input id="lampHeight" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Lamp height"></label>
+          </div>
+          <p class="note" id="lightNote">The room's own light. On a phone, tilt it and the light moves.</p>
+        </div>
         <div class="group">
           <h3 class="eyebrow">Colours</h3>
           <div class="discs" id="discs" role="group" aria-label="Colours"></div>

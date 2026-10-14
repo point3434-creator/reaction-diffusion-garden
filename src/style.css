@@ -104,6 +104,8 @@
   .hint.gone { opacity: 0; }
   .stage canvas.stir { cursor: grab; }
   .stage canvas.stirring { cursor: grabbing; }
+  .stage canvas.lamphover { cursor: grab; }
+  .stage canvas.lampdrag { cursor: grabbing; }
 
   /* Recording: a badge over the dish while the video runs. It is page, not canvas, so the video never shows it. */
   .recbadge {
@@ -250,6 +252,7 @@
   .meter { display: inline-block; width: 64px; height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; vertical-align: middle; }
   .meter i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(0); }
   .track { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
+  .lampwrap { margin-top: 8px; }
   .note { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.4; max-width: 46ch; }
 
   /* The explanation */

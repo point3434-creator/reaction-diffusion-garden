@@ -115,6 +115,8 @@
   .hint.gone { opacity: 0; }
   .stage canvas.stir { cursor: grab; }
   .stage canvas.stirring { cursor: grabbing; }
+  .stage canvas.lamphover { cursor: grab; }
+  .stage canvas.lampdrag { cursor: grabbing; }
 
   /* Recording: a badge over the dish while the video runs. It is page, not canvas, so the video never shows it. */
   .recbadge {
@@ -261,6 +263,7 @@
   .meter { display: inline-block; width: 64px; height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; vertical-align: middle; }
   .meter i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(0); }
   .track { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
+  .lampwrap { margin-top: 8px; }
   .note { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.4; max-width: 46ch; }
 
   /* The explanation */
@@ -426,6 +429,19 @@
           <h3 class="eyebrow">Made of</h3>
           <div class="chips" id="mats" role="group" aria-label="Material"></div>
         </div>
+        <div class="group" id="lights">
+          <h3 class="eyebrow">Light</h3>
+          <div class="seg" id="lightModes" role="group" aria-label="Light">
+            <button class="chip" type="button" data-light="studio" aria-pressed="true">Studio</button>
+            <button class="chip" type="button" data-light="lamp" aria-pressed="false">Lamp</button>
+            <button class="chip" type="button" data-light="stage" aria-pressed="false">Stage</button>
+            <button class="chip" type="button" data-light="sun" aria-pressed="false">Sun</button>
+          </div>
+          <div class="sliders lampwrap" id="lampWrap" hidden>
+            <label><span>lamp height</span> <input id="lampHeight" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Lamp height"></label>
+          </div>
+          <p class="note" id="lightNote">The room's own light. On a phone, tilt it and the light moves.</p>
+        </div>
         <div class="group">
           <h3 class="eyebrow">Colours</h3>
           <div class="discs" id="discs" role="group" aria-label="Colours"></div>
@@ -520,9 +536,11 @@
         <li>In Mould, paint a wall across the dish with one gap in it and food on the far side. The mould finds the gap, and the veins that led nowhere fade. In 2000 Nakagaki's group showed the real thing finds the shortest way through a maze.</li>
         <li>In Mould, seed from a photo. The network grows into the picture and takes its colours.</li>
         <li>On a phone, tilt it: the light moves.</li>
+        <li>In Look, choose Stage and drag the red lamp right up beside a blob. Its shadow is the colour of the other two lamps' light.</li>
+        <li>Choose Sun, then Fingerprint, and watch the shadows swing round and stretch as the sun sinks.</li>
         <li>Play a beat, press Record, and stir. You have a music video.</li>
       </ul>
-      <p>On a computer the keys work too: Space pauses, F is full screen, C clears, E erases, S stirs, R rewinds, N scatters, P saves a picture and V records; 1 to 9 pick a preset, and G, H, Q and M pick the dish.</p>
+      <p>On a computer the keys work too: Space pauses, F is full screen, C clears, E erases, S stirs, R rewinds, N scatters, P saves a picture, V records and L changes the light; 1 to 9 pick a preset, and G, H, Q and M pick the dish.</p>
       <p class="colophon">Runs entirely on your device; nothing is sent anywhere.</p>
       </section>
 
@@ -1515,7 +1533,10 @@ function hueRGB(hue) {
     palette: 0, material: 0, brushHue: null, strokePig: null,
     chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null,
     setup: 0,   // the preset the heart, the quantum dish or the mould was last set up with, though a slider has moved since
-    tilt: { x: 0, y: 0, tx: 0, ty: 0 }
+    tilt: { x: 0, y: 0, tx: 0, ty: 0 },
+    // the light: the room's own (studio), a lamp, three coloured stage lamps, or a low sun going round
+    light: 'studio', lampHeight: 0.5,
+    lamps: [{ x: 0.27, y: 0.4 }, { x: 0.39, y: 0.37 }, { x: 0.33, y: 0.55 }]   // where each hangs, as shares of the dish
   };
   var heart = { pace: false, bpm: 60, lastPace: 0, beatHue: 10 };
   var ecgBuf = new Float32Array(240), ecgAt = 0;
@@ -1708,6 +1729,14 @@ uniform float uBeat;
 uniform float uHue;
 uniform float uHeart;
 uniform vec2 uTilt;
+uniform int uLight;        // 0 the room's own lights, 1 lamps over the dish, 2 a low sun going round
+uniform vec4 uLamp[3];     // a lamp: where it hangs over the dish (uv), its height in cells, and 1 if it is on
+uniform vec3 uLampCol[3];
+uniform float uLampR;      // a lamp's marker, in cells
+uniform vec3 uSun;         // toward the sun
+uniform vec3 uSunCol;
+uniform int uPass;         // 1 draws the domes' heights for the rays, into uHeight; 0 draws the dish
+uniform sampler2D uHeight; // those heights, smoothed, at twice the grid's resolution
 in vec2 vUv;
 out vec4 outColor;
 
@@ -1756,6 +1785,49 @@ float hash12(vec2 p) {
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
 }
+// A dome as the rays see it: the same height, but without the vertical wall at its edge, which would make a
+// ragged edge on every shadow.
+float blockerOf(float b) {
+  float q = clamp((b - E0 + 0.02) / (BPK - E0 + 0.02), 0.0, 1.0);
+  return q * (2.0 - q);
+}
+// How much of a light gets here, ray-traced: march from the surface toward the light across the height map and
+// see how close the domes in between come to the ray. 1 in full light, 0 behind a dome, and soft across a band as
+// wide as the light looks from here (spread, as a slope). d points at the light, in cells, with z up.
+float lightReach(vec2 uv, float z0, vec3 d, float spread) {
+  if (d.z <= 0.0) return 0.0;
+  float run = length(d.xy);
+  if (run < 1e-3) return 1.0;
+  float rise = d.z / run;
+  // past tMax the ray is above every dome, so nothing further on can block it
+  float tMax = min(run, (uBump - z0) / rise);
+  if (tMax <= 0.0) return 1.0;
+  vec2 dir = d.xy / run / uTexSize;
+  // the steps start a third of a cell apart, where a dome's steep wall decides the shadow's edge, and grow by a
+  // fifth each time, so twenty of them reach about 75 cells
+  float dt = 0.33, t = dt;
+  float vis = 1.0;
+  for (int k = 0; k < 20; k++) {
+    if (t > tMax) break;
+    vec2 at = uv + dir * t;
+    float hs = texture(uHeight, vec2(at.x, 1.0 - at.y)).r * uBump;
+    vis = min(vis, clamp(0.5 + 0.5 * (z0 + 0.3 + rise * t - hs) / ((t + 1.0) * spread), 0.0, 1.0));
+    if (vis <= 0.0) break;
+    dt *= 1.2;
+    t += dt;
+  }
+  return vis * vis * (3.0 - 2.0 * vis);
+}
+// How shiny each material is under a lamp: the strength of the lamp's own highlight on it.
+float glossOf(int m) {
+  if (m == 0 || m == 8 || m == 12) return 1.0;
+  if (m == 1) return 1.3;
+  if (m == 10) return 0.9;
+  if (m == 3) return 0.35;
+  if (m == 5) return 0.0;
+  if (m == 2 || m == 6 || m == 7) return 0.1;
+  return 0.2;
+}
 float vnoise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
@@ -1791,6 +1863,9 @@ vec3 flameCol(float x, vec3 hue) {
 }
 
 void main() {
+  // the heights the rays read, from the smooth (bicubic) field: read from the grid itself, every shadow's edge
+  // would be ragged a cell at a time
+  if (uPass == 1) { outColor = vec4(blockerOf(bsum(fieldAt(vUv))), 0.0, 0.0, 1.0); return; }
   vec2 px = 1.0 / uTexSize;
   vec4 c = fieldAt(vUv);
   float b = bsum(c);
@@ -1805,6 +1880,31 @@ void main() {
   // the lights live in the room; tilting the phone moves them across the dish
   vec3 L = normalize(vec3(-0.45 + uTilt.x, -0.55 + uTilt.y, 0.7));
   vec3 Vv = vec3(0.0, 0.0, 1.0);
+  // Lamps and the sun light the dish themselves. E is the light arriving here as a multiple of the room's own,
+  // after a ray toward each light has looked for domes in the way; glint is the lamps' own highlights.
+  vec3 E = vec3(1.0), glint = vec3(0.0);
+  float sunReach = 1.0;
+  float z0 = h * uBump;
+  if (uLight == 1) {
+    E = vec3(mix(0.16, 0.34, uLightTheme));
+    vec3 toward = vec3(0.0, 0.0, 0.02);
+    for (int i = 0; i < 3; i++) {
+      if (uLamp[i].w < 0.5) continue;
+      vec3 d = vec3((uLamp[i].xy - vUv) * uTexSize, uLamp[i].z - z0);
+      float r2 = dot(d, d);
+      vec3 Li = d * inversesqrt(r2);
+      // inverse square, 1 at the lamp's foot; the lamp is about a sixth of its height across
+      vec3 Ii = uLampCol[i] * (uLamp[i].z * uLamp[i].z / r2) * lightReach(vUv, z0, d, 0.08 * uLamp[i].z * inversesqrt(r2) + 0.01);
+      E += Ii * max(dot(N, Li), 0.0) * mix(4.5, 2.1, uLightTheme);
+      toward += Li * dot(Ii, vec3(0.3, 0.5, 0.2));
+      glint += Ii * pow(max(dot(N, normalize(Li + Vv)), 0.0), 300.0);
+    }
+    L = normalize(toward);
+  } else if (uLight == 2) {
+    sunReach = lightReach(vUv, z0, uSun * 4000.0, 0.05);
+    E = mix(vec3(0.34, 0.40, 0.52), vec3(0.45, 0.48, 0.56), uLightTheme) + uSunCol * sunReach * max(dot(N, uSun), 0.0) * mix(1.7, 1.25, uLightTheme);
+    L = uSun;
+  }
   vec3 H = normalize(L + Vv);
   vec3 L2 = normalize(vec3(0.6 + 0.5 * uTilt.x, -0.3 + 0.5 * uTilt.y, 0.55));
   vec3 H2 = normalize(L2 + Vv);
@@ -1814,6 +1914,9 @@ void main() {
   float spec2 = pow(max(dot(N, H2), 0.0), 14.0);
   float fres = 1.0 - clamp(N.z, 0.0, 1.0);
   float caus = pow(max(dot(N, Lc), 0.0), 22.0);
+  // under lamps each lamp makes its own highlight; in sunshine the sun's goes out where a dome hides the sun
+  spec *= uLight == 1 ? 0.0 : sunReach;
+  spec2 *= uLight == 0 ? 1.0 : 0.5;
 
   float m = max(c.r, max(c.g, c.b));
   vec3 pig = m > 1e-5 ? c.rgb / m : vec3(1.0);
@@ -1827,7 +1930,7 @@ void main() {
 
   float mask = smoothstep(E0 - 0.012, E0 + 0.012, b);
   float bS = bsum(texture(uField, vUv - vec2(1.3, 1.5) * px));
-  float shadow = smoothstep(E0 - 0.05, E0 + 0.01, bS) * (1.0 - mask);
+  float shadow = smoothstep(E0 - 0.05, E0 + 0.01, bS) * (1.0 - mask) * (uLight == 0 ? 1.0 : 0.0);   // lamps and sun cast real ones
   float halo = smoothstep(E0 - 0.07, E0, b) * (1.0 - mask);
   vec3 bg = uBg * (1.0 - shadow * mix(0.45, 0.22, lt)) + tint * halo * 0.10 * (1.0 - lt);
   float grain = vnoise(gl_FragCoord.xy * 0.45) * 0.6 + vnoise(gl_FragCoord.xy * 0.12) * 0.4;
@@ -2114,7 +2217,31 @@ void main() {
     }
     mask *= 1.0 - scar;
   }
-  outColor = vec4(mix(bg, col, mask), 1.0);
+  vec3 outc = mix(bg, col, mask);
+  if (uLight > 0) {
+    // what glows keeps most of its own light; everything else is lit by what arrives, and a dark floor is lifted a
+    // little so that light and shadow show on it
+    float emis = (uMat == 4 || uMat == 7 || uMat == 9 || uMat == 11) ? 0.6 : 0.0;
+    outc += vec3(0.065, 0.07, 0.075) * (1.0 - mask) * (1.0 - uLightTheme) * (1.0 - emis / 0.6);
+    outc = outc * mix(E, vec3(1.0), emis) + glint * mask * glossOf(uMat) * mix(1.6, 1.0, uLightTheme);
+    // up to the room's own brightness nothing changes; brighter light rolls off toward white
+    float Y = dot(outc, vec3(0.2126, 0.7152, 0.0722));
+    float Yc = Y < 0.75 ? Y : 0.75 + 0.25 * (1.0 - exp(-(Y - 0.75) * 4.0));
+    outc = outc * (Yc / max(Y, 1e-4));
+    outc = mix(outc, vec3(1.0), smoothstep(0.9, 1.0, Yc) * smoothstep(1.0, 3.0, Y) * 0.6);
+  }
+  if (uLight == 1) {
+    // each lamp, seen from above: a bulb in its own colour, a glow, and a ring to take hold of
+    vec3 ringCol = mix(vec3(1.0), vec3(0.12), uLightTheme);
+    for (int i = 0; i < 3; i++) {
+      if (uLamp[i].w < 0.5) continue;
+      float dl = length((uLamp[i].xy - vUv) * uTexSize) / uLampR;
+      outc += uLampCol[i] * exp(-dl * dl * 0.35) * 0.3;
+      outc = mix(outc, mix(uLampCol[i], vec3(1.0), 0.7), 1.0 - smoothstep(0.4, 0.58, dl));
+      outc = mix(outc, ringCol, (smoothstep(0.84, 0.94, dl) - smoothstep(1.0, 1.1, dl)) * 0.85);
+    }
+  }
+  outColor = vec4(clamp(outc, 0.0, 1.0), 1.0);
 }
 `;
   function initGL() {
@@ -2151,9 +2278,10 @@ void main() {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      ['uField', 'uLut', 'uTexSize', 'uBg', 'uLightTheme', 'uLineage', 'uGlow', 'uBump', 'uMat', 'uTime', 'uLutFlip', 'uBeat', 'uHue', 'uHeart', 'uTilt'].forEach(function (n) { glU[n] = gl.getUniformLocation(prog, n); });
+      ['uField', 'uLut', 'uTexSize', 'uBg', 'uLightTheme', 'uLineage', 'uGlow', 'uBump', 'uMat', 'uTime', 'uLutFlip', 'uBeat', 'uHue', 'uHeart', 'uTilt', 'uLight', 'uLamp', 'uLampCol', 'uLampR', 'uSun', 'uSunCol', 'uPass', 'uHeight'].forEach(function (n) { glU[n] = gl.getUniformLocation(prog, n); });
       gl.uniform1i(glU.uField, 0);
       gl.uniform1i(glU.uLut, 1);
+      gl.uniform1i(glU.uHeight, 2);
       buildLut(PALETTES[1].stops);
       uploadLut();
       if (gl.getError() !== gl.NO_ERROR) throw new Error('GL error during setup');
@@ -2192,7 +2320,63 @@ void main() {
     gl.uniform2f(glU.uTilt, state.tilt.x, state.tilt.y);
     gl.uniform1f(glU.uTime, (performance.now() % 3600000) / 1000);
     gl.uniform1f(glU.uLutFlip, !p.lineage && lum(p.stops[0][1]) > lum(p.stops[p.stops.length - 1][1]) ? 1 : 0);
+    lightUniforms();
+    if (state.light !== 'studio') drawHeights();
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  // Under lamps and the sun, the domes' heights are drawn first into a texture of their own, at twice the grid's
+  // resolution, for the rays to read: one sample a step, already smooth.
+  var heightTex = null, heightFbo = null, heightW = 0, heightH = 0;
+  function drawHeights() {
+    var w = sim.w * 2, h = sim.h * 2;
+    if (!heightTex) { heightTex = gl.createTexture(); heightFbo = gl.createFramebuffer(); }
+    gl.activeTexture(gl.TEXTURE2);
+    if (w !== heightW || h !== heightH) {
+      gl.bindTexture(gl.TEXTURE_2D, heightTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, w, h, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, heightFbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, heightTex, 0);
+      heightW = w; heightH = h;
+    }
+    gl.bindTexture(gl.TEXTURE_2D, null);   // a texture can't be read while it is drawn into
+    gl.bindFramebuffer(gl.FRAMEBUFFER, heightFbo);
+    gl.viewport(0, 0, w, h);
+    gl.uniform1i(glU.uPass, 1);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform1i(glU.uPass, 0);
+    gl.bindTexture(gl.TEXTURE_2D, heightTex);
+  }
+  // The lamps hang over the dish at a height measured against its short side, so they light the same share of
+  // it at every size; the sun goes round once in 48 seconds, rising and sinking between 11 and 37 degrees.
+  // the stage lamps are dimmer, so that where all three meet they make about one lamp's white
+  var LAMP_WARM = [1.0, 0.8, 0.56], STAGE = [[0.62, 0.18, 0.16], [0.18, 0.62, 0.22], [0.2, 0.28, 0.66]];
+  var lampBuf = new Float32Array(12), lampColBuf = new Float32Array(9);
+  function lampsOn() { return state.light === 'lamp' ? 1 : state.light === 'stage' ? 3 : 0; }
+  function lampHeightCells() { return Math.min(sim.w, sim.h) * (0.05 + 0.3 * state.lampHeight); }
+  function lightUniforms() {
+    var n = lampsOn();
+    gl.uniform1i(glU.uLight, n ? 1 : state.light === 'sun' ? 2 : 0);
+    if (n) {
+      for (var i = 0; i < 3; i++) {
+        lampBuf[i * 4] = state.lamps[i].x; lampBuf[i * 4 + 1] = state.lamps[i].y;
+        lampBuf[i * 4 + 2] = lampHeightCells(); lampBuf[i * 4 + 3] = i < n ? 1 : 0;
+        lampColBuf.set(n === 1 ? LAMP_WARM : STAGE[i], i * 3);
+      }
+      gl.uniform4fv(glU.uLamp, lampBuf);
+      gl.uniform3fv(glU.uLampCol, lampColBuf);
+      gl.uniform1f(glU.uLampR, LAMP_GRAB * 0.5 / (canvas.getBoundingClientRect().width / sim.w));
+    } else if (state.light === 'sun') {
+      var t = performance.now() / 1000, az = t * Math.PI / 24, el = (24 + 13 * Math.sin(t * Math.PI / 15.5)) * Math.PI / 180;
+      gl.uniform3f(glU.uSun, Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el));
+      var w = smooth(11, 37, el * 180 / Math.PI);   // low sun is golden, high sun is nearly white
+      gl.uniform3f(glU.uSunCol, 1.0, 0.62 + 0.33 * w, 0.36 + 0.5 * w);
+    }
   }
 
   // ---- drawing ----
@@ -2348,8 +2532,16 @@ void main() {
     hereEl.setAttribute('cx', clamp(kToX(k), 0, 100).toFixed(2)); hereEl.setAttribute('cy', clamp(fToY(f), 0, 100).toFixed(2));
     $('capMap').textContent = cap;
   }
+  var lampDrag = -1;
   canvas.addEventListener('pointerdown', function (ev) {
     if (!sim) return;
+    if (gl && lampsOn()) {
+      lampDrag = lampAt(ev);
+      if (lampDrag >= 0) {
+        canvas.setPointerCapture(ev.pointerId); canvas.classList.add('lampdrag');
+        hint.classList.add('gone'); ev.preventDefault(); return;
+      }
+    }
     painting = true; lastPt = null;
     state.strokePig = huePigment(strokeHue());
     canvas.setPointerCapture(ev.pointerId);
@@ -2365,7 +2557,12 @@ void main() {
   });
   canvas.addEventListener('pointermove', function (ev) {
     if (!sim) return;
-    if (!painting) { if (state.atlas && sim.kind === 'garden') showAtlasAt(toGrid(ev)); return; }
+    if (lampDrag >= 0) { moveLamp(lampDrag, ev); return; }
+    if (!painting) {
+      canvas.classList.toggle('lamphover', !!gl && lampsOn() > 0 && lampAt(ev) >= 0);
+      if (state.atlas && sim.kind === 'garden') showAtlasAt(toGrid(ev));
+      return;
+    }
     if (throwStart) { throwLast = toGrid(ev); return; }
     var evs = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
     if (!evs.length) evs = [ev];
@@ -2384,7 +2581,11 @@ void main() {
     sim.packet(throwStart.x, throwStart.y, kx, ky, state.qSigma, state.qSigma);
     throwStart = null; throwLast = null;
   }
-  function stopPaint() { if (throwStart) throwPacket(); painting = false; lastPt = null; stirring = false; stirLast = null; canvas.classList.remove('stirring'); }
+  function stopPaint() {
+    if (lampDrag >= 0) { lampDrag = -1; canvas.classList.remove('lampdrag'); saveLamps(); return; }
+    if (throwStart) throwPacket();
+    painting = false; lastPt = null; stirring = false; stirLast = null; canvas.classList.remove('stirring');
+  }
   canvas.addEventListener('pointerup', stopPaint);
   canvas.addEventListener('pointercancel', stopPaint);
   canvas.addEventListener('lostpointercapture', stopPaint);
@@ -2895,6 +3096,65 @@ void main() {
     setSize(s);
   })();
 
+  // ---- light: the room's own, a lamp or three you drag about, or a low sun; remembered with the lamps' places ----
+  var LIGHT_NOTES = {
+    studio: 'The room\u2019s own light. On a phone, tilt it and the light moves.',
+    lamp: 'Drag the lamp to move it. Every point traces a ray to the lamp to see whether a dome is in the way, so the shadows are real, and more work for the graphics chip.',
+    stage: 'Three coloured lamps; drag them about. Where a dome hides one lamp, its shadow takes the colour of the other two.',
+    sun: 'A low sun going round. The shadows stretch as it sinks and shorten as it climbs.'
+  };
+  var LIGHTS = ['studio', 'lamp', 'stage', 'sun'];
+  var LAMP_GRAB = 22;   // how near a lamp a press takes hold of it, in CSS pixels
+  function setLight(name) {
+    if (LIGHTS.indexOf(name) < 0) name = 'studio';
+    state.light = name;
+    var chips = $('lightModes').querySelectorAll('.chip');
+    for (var i = 0; i < chips.length; i++) chips[i].setAttribute('aria-pressed', chips[i].getAttribute('data-light') === name ? 'true' : 'false');
+    $('lampWrap').hidden = !lampsOn();
+    $('lightNote').textContent = LIGHT_NOTES[name];
+    try { localStorage.setItem('garden.light', name); } catch (e) {}
+  }
+  function saveLamps() {
+    try { localStorage.setItem('garden.lamps', JSON.stringify({ h: state.lampHeight, at: state.lamps })); } catch (e) {}
+  }
+  // the lamp under a press, if any: the nearest within reach
+  function lampAt(ev) {
+    var r = canvas.getBoundingClientRect(), best = -1, bestD = LAMP_GRAB;
+    for (var i = 0; i < lampsOn(); i++) {
+      var d = Math.hypot(ev.clientX - r.left - state.lamps[i].x * r.width, ev.clientY - r.top - state.lamps[i].y * r.height);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+  // a lamp stays where it can be taken hold of again: not under the bench, nor under the sheet's edge on a phone
+  function moveLamp(i, ev) {
+    var r = canvas.getBoundingClientRect(), x = ev.clientX, y = ev.clientY;
+    if (!state.focus) {
+      if (narrowMQ.matches) y = Math.min(y, r.bottom - 80 - LAMP_GRAB);
+      else { var p = panel.getBoundingClientRect(); if (p.left > r.left + r.width / 2) x = Math.min(x, p.left - LAMP_GRAB); }
+    }
+    state.lamps[i].x = clamp((x - r.left) / r.width, 0, 1);
+    state.lamps[i].y = clamp((y - r.top) / r.height, 0, 1);
+  }
+  $('lightModes').addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('.chip') : null;
+    if (b) setLight(b.getAttribute('data-light'));
+  });
+  $('lampHeight').addEventListener('input', function () { state.lampHeight = parseFloat(this.value); fill(this); saveLamps(); });
+  (function () {
+    var l = 'studio', k = null;
+    try { l = localStorage.getItem('garden.light') || 'studio'; k = JSON.parse(localStorage.getItem('garden.lamps') || 'null'); } catch (e) {}
+    if (k && typeof k.h === 'number' && k.at && k.at.length === 3) {
+      state.lampHeight = clamp(k.h, 0, 1);
+      for (var i = 0; i < 3; i++) {
+        var a = k.at[i];
+        if (a && typeof a.x === 'number' && typeof a.y === 'number' && isFinite(a.x) && isFinite(a.y)) state.lamps[i] = { x: clamp(a.x, 0, 1), y: clamp(a.y, 0, 1) };
+      }
+    }
+    $('lampHeight').value = state.lampHeight; fill($('lampHeight'));
+    setLight(l);
+  })();
+
   // ---- full screen: hide the bench; use the real thing where the browser or the app allows it ----
   state.focus = false;
   function setFocus(on) {
@@ -2915,7 +3175,8 @@ void main() {
   $('unfocus').addEventListener('click', function () { setFocus(false); });
   document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && state.focus) setFocus(false); });
   // Keys, on a computer: F full screen, Space pause, C clear, E the brush toggle (erase, scar or wall), S stir,
-  // R rewind, N scatter, P save a picture, V record, 1 to 9 the presets, and G, H, Q and M the four dishes.
+  // R rewind, N scatter, P save a picture, V record, L the next light, 1 to 9 the presets, and G, H, Q and M the
+  // four dishes.
   var CHEM_KEYS = { g: 'garden', h: 'heart', q: 'quantum', m: 'mould' };
   function press(id) { var b = $(id); if (!b || b.hidden) return false; b.click(); return true; }
   document.addEventListener('keydown', function (ev) {
@@ -2932,6 +3193,7 @@ void main() {
     else if (k === 'n') press('seed');
     else if (k === 'p') hit = press('snapBtn');
     else if (k === 'v') hit = press('recBtn');
+    else if (k === 'l') { if (gl) setLight(LIGHTS[(LIGHTS.indexOf(state.light) + 1) % LIGHTS.length]); else hit = false; }
     else if (k.length === 1 && k >= '1' && k <= '9') { var c = $('presets').children[+k - 1]; if (c) c.click(); else hit = false; }
     else if (CHEM_KEYS[k]) { if (CHEM_KEYS[k] !== state.chem) setChemistry(CHEM_KEYS[k]); }
     else hit = false;
@@ -3603,6 +3865,7 @@ void main() {
   function named(list, name) { for (var i = 0; i < list.length; i++) if (list[i].name === name) return i; return -1; }
   if (!initGL()) ctx = canvas.getContext('2d', { alpha: false });
   $('materials').hidden = !gl;
+  $('lights').hidden = !gl;   // the flat renderer has no light of its own
   setPalette(named(PALETTES, saved.palette) >= 0 ? named(PALETTES, saved.palette) : state.palette);
   if (gl && named(MATERIALS, saved.material) >= 0) setMaterial(named(MATERIALS, saved.material));
   syncHues();
