@@ -10,6 +10,7 @@ spliced into the page by this script:
   src/heart.js     -> the excitable-tissue model
   src/quantum.js   -> the Schrödinger model
   src/mould.js     -> the slime-mould model
+  src/stir.js      -> the flow that stirs the garden
   src/beats.js     -> the beat engine and the five loops
 
 Run with --check to see whether the page already matches src/ (exit code 1 if not).
@@ -44,7 +45,8 @@ def splice(html):
     blocks = [
         ('heart.js', '// Excitable tissue (Barkley\'s model)', '// The Schrödinger equation on the same grid'),
         ('quantum.js', '// The Schrödinger equation on the same grid', '// A slime mould (Jones\'s agent model'),
-        ('mould.js', '// A slime mould (Jones\'s agent model', '// A hue (degrees) as pigment shares that sum to 1.'),
+        ('mould.js', '// A slime mould (Jones\'s agent model', '// Stirring: a fluid flow'),
+        ('stir.js', '// Stirring: a fluid flow', '// A hue (degrees) as pigment shares that sum to 1.'),
         ('beats.js', '  // ---- beats: five original loops', '  // ---- tilt: the light stays put'),
     ]
     for name, start, end in blocks:

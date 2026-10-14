@@ -47,3 +47,17 @@ s = createQuantum(W, H); s.wallLine(165, 3, [[100, 8]]); s.packet(60, 100, 0.8, 
 for (let i = 0; i < 1500; i++) s.step({ dt: 0.1, V0: 1.5 }, 1);
 const c = centroid(s);
 console.log('walls at the slider maximum stable:', isFinite(c[2]) && c[2] < 1e4);
+
+// Rewind: run forwards, turn time around, run as many steps again and turn it back, and the dish should be what it was,
+// except for whatever the absorbing edges swallowed on the way.
+function roundTrip(setup, steps) {
+  const r = createQuantum(W, H); setup(r);
+  const re0 = Float32Array.from(r.Re), im0 = Float32Array.from(r.Im);
+  r.step(P, steps); r.reverse(P); r.step(P, steps); r.reverse(P);
+  let e = 0, n = 0;
+  for (let i = 0; i < W * H; i++) { e += (r.Re[i] - re0[i]) ** 2 + (r.Im[i] - im0[i]) ** 2; n += re0[i] ** 2 + im0[i] ** 2; }
+  return Math.sqrt(e / n);
+}
+const slit = (r) => { r.absorbEdges(0.1); r.wallLine(165, 3, [[100 - 15, 5], [100 + 15, 5]]); r.packet(70, 100, 0.7, 0, 6, 30); };
+console.log('rewind: a packet among walls, 3000 steps there and back, relative error', roundTrip((r) => { r.wallLine(200, 3, [[100, 10]]); r.packet(70, 100, 0.7, 0.2, 8, 8); }, 3000).toExponential(1));
+for (const steps of [1500, 3000]) console.log(`rewind: double slit with absorbing edges, ${steps} steps there and back, relative error`, roundTrip(slit, steps).toFixed(3));

@@ -10,6 +10,7 @@ function createQuantum(w, h) {
     R: new Float32Array(n), G: new Float32Array(n), Bl: new Float32Array(n), A: new Float32Array(n),
     XL: new Int32Array(w), XR: new Int32Array(w),
     gain: 1, screen: new Float32Array(h), total: 0,
+    reversed: false,   // running backwards: what is stored is the conjugate of what is shown
   };
   for (let x = 0; x < w; x++) { sim.XL[x] = (x - 1 + w) % w; sim.XR[x] = (x + 1) % w; }
 
@@ -42,6 +43,25 @@ function createQuantum(w, h) {
     sim.sync();
   };
 
+  // Turn time around. Running the Schrödinger equation backwards is running the conjugate of ψ forwards,
+  // and because Visscher's scheme keeps Im half a step ahead of Re, the half step Im last took is undone
+  // first: Im ← −(Im + dt·H·Re). Doing it twice gives back exactly what you started with, so forward steps
+  // after a reversal retrace the ones before it. Only damping (the absorbing edges) does not retrace.
+  sim.reverse = function (p) {
+    const { w, h, Re, Im, wall, Vs, XL, XR } = sim;
+    const dt = p.dt, V0 = p.V0;
+    for (let y = 0; y < h; y++) {
+      const yc = y * w, yu = ((y - 1 + h) % h) * w, yd = ((y + 1) % h) * w;
+      for (let x = 0; x < w; x++) {
+        const i = yc + x, re = Re[i];
+        const lap = Re[yc + XL[x]] + Re[yc + XR[x]] + Re[yu + x] + Re[yd + x] - 4 * re;
+        Im[i] = -(Im[i] + dt * (-0.5 * lap + (wall[i] ? V0 : Vs[i]) * re));
+      }
+    }
+    sim.reversed = !sim.reversed;
+    sim.sync();
+  };
+
   // Render arrays: hue from the phase, brightness from the density, with a slow automatic gain so a
   // packet that has spread thin stays visible. A marks walls (-1) and dips for smooth potentials.
   sim.sync = function () {
@@ -62,7 +82,7 @@ function createQuantum(w, h) {
         if (x >= x0) col += d;
         if (d < 1e-9) { R[i] = 0; G[i] = 0; Bl[i] = 0; }
         else {
-          const inv = 1 / Math.sqrt(d), c = re * inv, s = im * inv;
+          const inv = 1 / Math.sqrt(d), c = re * inv, s = (sim.reversed ? -im : im) * inv;   // shown as the film run backwards
           let b = d * g; if (b > 1) b = 1;
           // a hue wheel from the phase, without an atan: the three shares always sum to one
           R[i] = (0.5 + 0.5 * c) * b / 1.5;
@@ -76,7 +96,7 @@ function createQuantum(w, h) {
   };
 
   sim.clear = function () {
-    sim.Re.fill(0); sim.Im.fill(0); sim.wall.fill(0); sim.Vs.fill(0); sim.damp.fill(0); sim.hasDamp = false; sim.screen.fill(0); sim.gain = 1;
+    sim.Re.fill(0); sim.Im.fill(0); sim.wall.fill(0); sim.Vs.fill(0); sim.damp.fill(0); sim.hasDamp = false; sim.screen.fill(0); sim.gain = 1; sim.reversed = false;
     sim.sync();
   };
 
@@ -156,7 +176,7 @@ function createQuantum(w, h) {
         next.Re[di] = sim.Re[si]; next.Im[di] = sim.Im[si]; next.wall[di] = sim.wall[si]; next.Vs[di] = sim.Vs[si]; next.damp[di] = sim.damp[si];
       }
     }
-    next.gain = sim.gain; next.hasDamp = sim.hasDamp;
+    next.gain = sim.gain; next.hasDamp = sim.hasDamp; next.reversed = sim.reversed;
     next.sync();
     return next;
   };
