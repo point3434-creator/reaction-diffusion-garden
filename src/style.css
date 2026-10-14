@@ -199,6 +199,7 @@
   .act .ico-stop { display: none; }
   .act.recording .ico-rec { display: none; }
   .act.recording .ico-stop { display: block; }
+  #recLabel { font-variant-numeric: tabular-nums; }   /* the running clock keeps the button's width */
 
   /* The chemistry switch */
   .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 3px; border-radius: 12px; background: var(--chip); }
