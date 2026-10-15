@@ -90,9 +90,10 @@ function createCurrent(w, h) {
           var ng = bg + (0.5 * lapG + grow * bg);
           var nb = bb + (0.5 * lapB + grow * bb);
           A[i0] = na < 0 ? 0 : (na > 1 ? 1 : na);
-          R[i0] = nr < 0 ? 0 : (nr > 1 ? 1 : nr);
-          G[i0] = ng < 0 ? 0 : (ng > 1 ? 1 : ng);
-          Bl[i0] = nb < 0 ? 0 : (nb > 1 ? 1 : nb);
+          // Cap total B while preserving its pigment shares, as in the garden.
+          var pr = nr < 0 ? 0 : nr, pg = ng < 0 ? 0 : ng, pb = nb < 0 ? 0 : nb;
+          var sb = pr + pg + pb, sc = sb > 1 ? 1 / sb : 1;
+          R[i0] = pr * sc; G[i0] = pg * sc; Bl[i0] = pb * sc;
         }
       }
     }

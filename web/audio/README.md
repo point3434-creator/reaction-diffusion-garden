@@ -8,12 +8,12 @@ The player expects these exact files in this directory:
 - Neon_Thistle.mp3
 - Velvet_Circuit.mp3
 
-The recordings are not included in this commit: the available GitHub connector can commit source text but cannot transfer the large audio attachments from the chat runtime.
+All five original MP3 recordings are bundled here. Choose a track under Garden soundtrack in the Sound tab and press Play. The web app and Android asset build use these same files; the five synthesized beats remain available below them.
 
-The supplied chat download `Garden_Audio_For_GitHub.zip` contains this `web/audio/` directory and all five original MP3s. Extract it at the repository root and commit the MP3s normally. Alternatively run:
+To restore the recordings from the original downloaded HTML, run:
 
 ```sh
-python tools/import-garden-audio.py /path/to/Reaction_Diffusion_Garden_Liquid_Current_Glass_Garden.html
+python tools/import-garden-audio.py /path/to/Reaction_Diffusion_Garden_Velvet_Circuit.html
 ```
 
-The Sound tab also supports loading the downloaded recordings directly from your device without uploading them anywhere. Existing synthesized beats remain available without these files.
+The Sound tab also supports replacing recordings locally from your device without uploading them anywhere. Keep the entire `web/` folder together when distributing the app so the relative `audio/` paths remain available.

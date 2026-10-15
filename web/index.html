@@ -1697,6 +1697,15 @@ function hueRGB(hue) {
   var $ = function (id) { return document.getElementById(id); };
   var stage = document.querySelector('.stage'), app = document.querySelector('.app');
   var canvas = $('view'), ctx = null;
+  var canvasListeners = [];
+  function listenCanvas(type, handler) {
+    canvasListeners.push({ type: type, handler: handler });
+    canvas.addEventListener(type, handler);
+  }
+  function unlistenCanvas(type, handler) {
+    canvas.removeEventListener(type, handler);
+    canvasListeners = canvasListeners.filter(function (entry) { return entry.type !== type || entry.handler !== handler; });
+  }
   var hint = $('hint');
   var feedIn = $('feed'), killIn = $('kill'), speedIn = $('speed');
   var feedOut = $('feedOut'), killOut = $('killOut'), speedOut = $('speedOut');
@@ -1799,6 +1808,18 @@ function hueRGB(hue) {
     return { sa: p.sa, ra: p.ra, so: state.mso, ss: MP_BASE.ss, dep: p.dep, decay: state.mdecay, blur: p.blur || MP_BASE.blur,
              eat: typeof p.eat === 'number' ? p.eat : MP_BASE.eat, scentW: MP_BASE.scentW, scentFade: MP_BASE.scentFade };
   }
+  function setupRenderBuffers() {
+    if (gl) {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, sim.w, sim.h, 0, gl.RGBA, gl.FLOAT, null);
+      fieldBuf = new Float32Array(sim.w * sim.h * 4);
+      gl.uniform2f(glU.uTexSize, sim.w, sim.h);
+    } else {
+      canvas.width = sim.w; canvas.height = sim.h;
+      img = ctx.createImageData(sim.w, sim.h);
+      pix32 = new Uint32Array(img.data.buffer);
+    }
+  }
   function setupGrid() {
     var r = canvas.getBoundingClientRect();
     if (r.width < 10 || r.height < 10) return;
@@ -1814,16 +1835,7 @@ function hueRGB(hue) {
     if (sim.kind === 'garden' && state.atlas && (changed || Math.abs(atlasSpan() - (sim.atlasSpan || 1)) > 0.01)) buildAtlas(sim);
     if (changed) {
       flow = null;   // a new grid starts still
-      if (gl) {
-        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, sim.w, sim.h, 0, gl.RGBA, gl.FLOAT, null);
-        fieldBuf = new Float32Array(sim.w * sim.h * 4);
-        gl.uniform2f(glU.uTexSize, sim.w, sim.h);
-      } else {
-        canvas.width = sim.w; canvas.height = sim.h;
-        img = ctx.createImageData(sim.w, sim.h);
-        pix32 = new Uint32Array(img.data.buffer);
-      }
+      setupRenderBuffers();
     }
     fitCanvas();
   }
@@ -1892,7 +1904,7 @@ function hueRGB(hue) {
   }
 
   // ---- lit renderer (WebGL2): one height map, thirteen materials; the flat 2D renderer below is the fallback ----
-  var gl = null, glTex = null, glLut = null, fieldBuf = null, glU = {};
+  var gl = null, glTex = null, glLut = null, fieldBuf = null, glU = {}, glLost = false;
   var VERT = "#version 300 es\nin vec2 aPos;\nout vec2 vUv;\nvoid main() {\n  vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5);\n  gl_Position = vec4(aPos, 0.0, 1.0);\n}\n";
   var FRAG = `#version 300 es
 precision highp float;
@@ -2541,6 +2553,29 @@ void main() {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, glLut);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
   }
+  function initializeRenderer() {
+    glU = {};
+    heightTex = null; heightFbo = null; heightW = 0; heightH = 0;
+    if (!initGL()) {
+      // A canvas that acquired WebGL cannot change context type, even after a shader error.
+      var replacement = canvas.cloneNode(false);
+      canvas.replaceWith(replacement); canvas = replacement;
+      canvasListeners.forEach(function (entry) { canvas.addEventListener(entry.type, entry.handler); });
+      ctx = canvas.getContext('2d', { alpha: false });
+    }
+    $('materials').hidden = !gl;
+    $('lights').hidden = !gl;   // the flat renderer has no light of its own
+    buildLut(PALETTES[state.palette].stops || PALETTES[1].stops); uploadLut();
+    if (sim) setupRenderBuffers();
+    fitCanvas();
+    if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
+    glLost = false;
+  }
+  listenCanvas('webglcontextlost', function (event) {
+    event.preventDefault();
+    glLost = true;
+  });
+  listenCanvas('webglcontextrestored', initializeRenderer);
   function renderGL(dark) {
     var n = sim.w * sim.h, R = sim.R, G = sim.G, Bl = sim.Bl, A = sim.A, fb = fieldBuf;
     for (var i = 0, j = 0; i < n; i++, j += 4) { fb[j] = R[i]; fb[j + 1] = G[i]; fb[j + 2] = Bl[i]; fb[j + 3] = A[i]; }
@@ -2675,7 +2710,7 @@ void main() {
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
   function frame(now) {
     if (!sim) setupGrid();
-    if (sim) {
+    if (sim && !glLost) {
       var fL = state.f, kL = state.k, target = state.steps;
       if (music.on) {
         analyse(now || performance.now());
@@ -2714,7 +2749,7 @@ void main() {
         }
         lastSimMs = performance.now() - t0;
         // keep the frame affordable on slower devices, and follow the music's pace
-        if (lastSimMs > 22 && state.stepsEff > 1) state.stepsEff = Math.max(1, Math.round(state.stepsEff * 0.8));
+        if (lastSimMs > 22 && state.stepsEff > 1) state.stepsEff = Math.max(1, Math.floor(state.stepsEff * 0.8));
         else if (state.stepsEff < target && lastSimMs < 11) state.stepsEff++;
         else if (state.stepsEff > target) state.stepsEff--;
       }
@@ -2725,7 +2760,7 @@ void main() {
   }
 
   // ---- painting ----
-  var painting = false, lastPt = null, hintTimer = null, throwStart = null, throwLast = null;
+  var painting = false, lastPt = null, hintTimer = null, throwStart = null, throwLast = null, activePointerId = null;
   function toGrid(ev) {
     var r = canvas.getBoundingClientRect();
     return { x: (ev.clientX - r.left) / r.width * sim.w, y: (ev.clientY - r.top) / r.height * sim.h, scale: r.width / sim.w };
@@ -2774,8 +2809,9 @@ void main() {
     $('capMap').textContent = cap;
   }
   var lampDrag = -1;
-  canvas.addEventListener('pointerdown', function (ev) {
-    if (!sim) return;
+  listenCanvas('pointerdown', function (ev) {
+    if (!sim || activePointerId !== null) return;
+    activePointerId = ev.pointerId;
     if (gl && lampsOn()) {
       lampDrag = lampAt(ev);
       if (lampDrag >= 0) {
@@ -2796,8 +2832,8 @@ void main() {
     hint.classList.add('gone');
     ev.preventDefault();
   });
-  canvas.addEventListener('pointermove', function (ev) {
-    if (!sim) return;
+  listenCanvas('pointermove', function (ev) {
+    if (!sim || (activePointerId !== null && ev.pointerId !== activePointerId)) return;
     if (lampDrag >= 0) { moveLamp(lampDrag, ev); return; }
     if (!painting) {
       canvas.classList.toggle('lamphover', !!gl && lampsOn() > 0 && lampAt(ev) >= 0);
@@ -2810,7 +2846,7 @@ void main() {
     for (var i = 0; i < evs.length; i++) { var q = toGrid(evs[i]); if (stirring) stirAt(q, evs[i].timeStamp); else brush(q); }
     if (state.atlas && sim.kind === 'garden') showAtlasAt(toGrid(ev));
   });
-  canvas.addEventListener('pointerleave', function () { if (state.atlas && !painting) showAtlasAt(null); });
+  listenCanvas('pointerleave', function () { if (state.atlas && !painting) showAtlasAt(null); });
   // The drag is the throw: its direction is the particle's, its length the speed. A tap is a particle at rest.
   function throwPacket() {
     if (!throwStart || !sim || sim.kind !== 'quantum') { throwStart = null; return; }
@@ -2822,14 +2858,16 @@ void main() {
     sim.packet(throwStart.x, throwStart.y, kx, ky, state.qSigma, state.qSigma);
     throwStart = null; throwLast = null;
   }
-  function stopPaint() {
+  function stopPaint(ev) {
+    if (ev.pointerId !== activePointerId) return;
+    activePointerId = null;
     if (lampDrag >= 0) { lampDrag = -1; canvas.classList.remove('lampdrag'); saveLamps(); return; }
     if (throwStart) throwPacket();
     painting = false; lastPt = null; stirring = false; stirLast = null; canvas.classList.remove('stirring');
   }
-  canvas.addEventListener('pointerup', stopPaint);
-  canvas.addEventListener('pointercancel', stopPaint);
-  canvas.addEventListener('lostpointercapture', stopPaint);
+  listenCanvas('pointerup', stopPaint);
+  listenCanvas('pointercancel', stopPaint);
+  listenCanvas('lostpointercapture', stopPaint);
   hintTimer = setTimeout(function () { hint.classList.add('gone'); }, 9000);
 
   // ---- parameters ----
@@ -2902,7 +2940,7 @@ void main() {
   }
 
   // ---- chemistry: the garden, the heart or the quantum dish ----
-  function presetList() { return state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : state.chem === 'mould' ? MPRESETS : PRESETS; }
+  function presetList() { return state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : state.chem === 'mould' ? MPRESETS : state.chem === 'current' ? PRESETS.filter(function (p) { return !p.atlas; }) : PRESETS; }
   function buildPresets() {
     var list = presetList(), host = $('presets');
     while (host.firstChild) host.removeChild(host.firstChild);
@@ -2976,6 +3014,7 @@ void main() {
   // Atlas on: every cell gets its own feed and kill, and the dish starts again from a spectrum of seeds.
   // Atlas off (another preset, the sliders or the map): one feed and kill again, and what the atlas grew is the seed.
   function setAtlas(on) {
+    on = !!on && !!sim && sim.kind === 'garden';
     if (on === state.atlas) return;
     state.atlas = on;
     if (!sim || sim.kind !== 'garden') return;
@@ -3172,7 +3211,7 @@ void main() {
       // the garden gets the picture as dots, more of them where it is darker, but never more than about one in
       // three places: dots packed closer grow into one sheet within a second, and a sheet starves itself in
       // Mitosis, Spots and Pulses, where sparse dots live
-      var sc = sim.scale, sp = 7 * sc;   // in the pattern's units, so a smaller pattern gets finer dots
+      var sc = sim.kind === 'garden' ? sim.scale : 1, sp = 7 * sc;   // Current scales its grid, not its diffusion length.
       for (var y = sp / 2; y < h; y += sp) for (var x = sp / 2; x < w; x += sp) {
         var jx = x + (Math.random() - 0.5) * sp * 0.5, jy = y + (Math.random() - 0.5) * sp * 0.5;
         var j = Math.min(h - 1, Math.round(jy)) * w + Math.min(w - 1, Math.round(jx)), d = darkAt(j);
@@ -3288,7 +3327,7 @@ void main() {
       if (dy > 30) sheetOpen(false); else if (dy < -30) sheetOpen(true);
     });
   })();
-  canvas.addEventListener('pointerdown', function () { if (narrowMQ.matches) sheetOpen(false); });
+  listenCanvas('pointerdown', function () { if (narrowMQ.matches) sheetOpen(false); });
   (function () {
     var t = 'dish';
     try { t = localStorage.getItem('garden.tab') || 'dish'; } catch (e) {}
@@ -3473,7 +3512,7 @@ void main() {
     lastKick: 0, lastSnare: 0, hue: 200, flash: 0,
     beat: 0, kicks: 0, hueAng: 0, hueTarget: 0
   };
-  var audio = new Audio(), songNode = null, songName = '';
+  var audio = new Audio(), songNode = null, songName = '', songObjectURL = '';
   function ensureCtx() {
     if (!music.actx) {
       var AC = window.AudioContext || window.webkitAudioContext;
@@ -3539,9 +3578,10 @@ void main() {
   $('songBtn').addEventListener('click', function () { ensureCtx(); $('file').click(); });
   $('file').addEventListener('change', function () {
     var f = this.files && this.files[0]; if (!f) return;
-    if (audio.src) { try { URL.revokeObjectURL(audio.src); } catch (e) {} }
+    if (songObjectURL) URL.revokeObjectURL(songObjectURL);
     songName = f.name.replace(/\.[^.]+$/, '');
-    audio.src = URL.createObjectURL(f);
+    songObjectURL = URL.createObjectURL(f);
+    audio.src = songObjectURL;
     startSong();
     this.value = '';
   });
@@ -4108,9 +4148,9 @@ void main() {
   }
   if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
     // iPhones ask first, and only on a touch
-    canvas.addEventListener('pointerdown', function ask() {
+    listenCanvas('pointerdown', function ask() {
       DeviceOrientationEvent.requestPermission().then(function (r) { if (r === 'granted') enableTilt(); }).catch(function () {});
-      canvas.removeEventListener('pointerdown', ask);
+      unlistenCanvas('pointerdown', ask);
     });
   } else {
     enableTilt();
@@ -4209,9 +4249,10 @@ function createCurrent(w, h) {
           var ng = bg + (0.5 * lapG + grow * bg);
           var nb = bb + (0.5 * lapB + grow * bb);
           A[i0] = na < 0 ? 0 : (na > 1 ? 1 : na);
-          R[i0] = nr < 0 ? 0 : (nr > 1 ? 1 : nr);
-          G[i0] = ng < 0 ? 0 : (ng > 1 ? 1 : ng);
-          Bl[i0] = nb < 0 ? 0 : (nb > 1 ? 1 : nb);
+          // Cap total B while preserving its pigment shares, as in the garden.
+          var pr = nr < 0 ? 0 : nr, pg = ng < 0 ? 0 : ng, pb = nb < 0 ? 0 : nb;
+          var sb = pr + pg + pb, sc = sb > 1 ? 1 / sb : 1;
+          R[i0] = pr * sc; G[i0] = pg * sc; Bl[i0] = pb * sc;
         }
       }
     }
@@ -4239,6 +4280,7 @@ function createCurrent(w, h) {
   state.currentFlow = 0.85;
   state.currentSpin = 0.65;
   CHEMS.current = Object.assign({}, CHEMS.garden, {
+    stir: false,
     lede: 'A flowing garden: paint living ribbons and let the current carry them into eddies.',
     hint: 'Paint a ribbon; the current carries the chemistry along'
   });
@@ -4289,7 +4331,7 @@ function createCurrent(w, h) {
     ['Velvet Circuit', 'Velvet_Circuit.mp3', '112 BPM · Psychedelic guitar funk']
   ];
   var host = document.createElement('div'); host.id = 'gardenScores'; host.className = 'group garden-scores';
-  host.innerHTML = '<h3 class="eyebrow">Garden soundtrack</h3><div class="chips" id="gardenScoreLibrary" role="group" aria-label="Garden soundtrack"></div><h2 id="gardenScoreTitle"></h2><p class="note" id="gardenScoreMeta"></p><div class="actions"><button type="button" class="act" id="gardenScorePlay">Play</button><button type="button" class="act" id="gardenScoreRestart">Restart</button><label class="score-loop"><input type="checkbox" id="gardenScoreLoop" checked> Repeat</label></div><label class="score-range">Position <input id="gardenScoreSeek" type="range" min="0" max="1000" value="0" aria-label="Track position"></label><label class="score-range">Volume <input id="gardenScoreVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Track volume"></label><p class="note" id="gardenScoreStatus" role="status"></p><button type="button" class="act" id="gardenAudioLoad">Load downloaded recordings</button><input id="gardenAudioFiles" type="file" accept="audio/*" multiple hidden>';
+  host.innerHTML = '<h3 class="eyebrow">Garden soundtrack</h3><div class="chips" id="gardenScoreLibrary" role="group" aria-label="Garden soundtrack"></div><h2 id="gardenScoreTitle"></h2><p class="note" id="gardenScoreMeta"></p><div class="actions"><button type="button" class="act" id="gardenScorePlay">Play</button><button type="button" class="act" id="gardenScoreRestart">Restart</button><label class="score-loop"><input type="checkbox" id="gardenScoreLoop" checked> Repeat</label></div><label class="score-range">Position <input id="gardenScoreSeek" type="range" min="0" max="1000" value="0" aria-label="Track position"></label><label class="score-range">Volume <input id="gardenScoreVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Track volume"></label><p class="note" id="gardenScoreStatus" role="status"></p><button type="button" class="act" id="gardenAudioLoad">Load your recordings</button><input id="gardenAudioFiles" type="file" accept="audio/*" multiple hidden>';
   var sound = document.querySelector('[data-pane="sound"]'); sound.insertBefore(host, sound.firstChild);
   var selected = 0, activeSource = '', urls = new Map();
   function source() { return urls.get(tracks[selected][1]) || 'audio/' + tracks[selected][1]; }
@@ -4303,7 +4345,7 @@ function createCurrent(w, h) {
   function choose(i) {
     stopMusic(); selected = i; activeSource = '';
     $('gardenScoreTitle').textContent = tracks[i][0]; $('gardenScoreMeta').textContent = tracks[i][2];
-    $('gardenScoreStatus').textContent = 'Choose Play, or load the recordings saved from chat.';
+    $('gardenScoreStatus').textContent = 'Choose Play to listen.';
     Array.from($('gardenScoreLibrary').children).forEach(function (b, j) { b.setAttribute('aria-pressed', String(i === j)); });
     refresh();
   }
@@ -4330,18 +4372,27 @@ function createCurrent(w, h) {
     Array.from(this.files || []).forEach(function (file) {
       var track = tracks.find(function (t) { return t[1].toLowerCase() === file.name.toLowerCase(); });
       if (!track) return;
-      if (urls.has(track[1])) URL.revokeObjectURL(urls.get(track[1]));
-      urls.set(track[1], URL.createObjectURL(file)); count++;
+      var old = urls.get(track[1]), url = URL.createObjectURL(file);
+      var active = activeSource && audio.getAttribute('src') === activeSource && track === tracks[selected];
+      var resume = active && !audio.paused;
+      urls.set(track[1], url); count++;
+      if (active) {
+        activeSource = url; audio.src = url;
+        if (resume) startSong(); else refresh();
+      }
+      if (old) URL.revokeObjectURL(old);
     });
-    this.value = ''; $('gardenScoreStatus').textContent = count ? count + ' recordings loaded locally.' : 'Choose the five named MP3 recordings from the soundtrack download.';
+    this.value = ''; $('gardenScoreStatus').textContent = count ? count + ' recordings loaded locally.' : 'Choose recordings named after the five soundtrack tracks.';
   });
   ['play','pause','ended','timeupdate','loadedmetadata'].forEach(function (name) { audio.addEventListener(name, refresh); });
   audio.addEventListener('error', function () {
     if (activeSource && audio.getAttribute('src') === activeSource) {
-      setMusicOn(false); $('gardenScoreStatus').textContent = 'This recording is not in the checkout yet. Use Load downloaded recordings, or place the MP3s in web/audio/.'; refresh();
+      setMusicOn(false); $('gardenScoreStatus').textContent = 'This recording could not be played. Try again or load a local recording.'; refresh();
     }
   });
-  window.addEventListener('pagehide', function () { urls.forEach(function (url) { URL.revokeObjectURL(url); }); });
+  window.addEventListener('pagehide', function (event) {
+    if (!event.persisted) urls.forEach(function (url) { URL.revokeObjectURL(url); });
+  });
   choose(0);
 })();
 
@@ -4418,9 +4469,7 @@ function createCurrent(w, h) {
   var saved = {};
   try { saved = { chem: localStorage.getItem('garden.chem'), palette: localStorage.getItem('garden.palette'), material: localStorage.getItem('garden.material') }; } catch (e) {}
   function named(list, name) { for (var i = 0; i < list.length; i++) if (list[i].name === name) return i; return -1; }
-  if (!initGL()) ctx = canvas.getContext('2d', { alpha: false });
-  $('materials').hidden = !gl;
-  $('lights').hidden = !gl;   // the flat renderer has no light of its own
+  initializeRenderer();
   setPalette(named(PALETTES, saved.palette) >= 0 ? named(PALETTES, saved.palette) : state.palette);
   if (gl && named(MATERIALS, saved.material) >= 0) setMaterial(named(MATERIALS, saved.material));
   syncHues();

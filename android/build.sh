@@ -16,6 +16,7 @@ KEYSTORE_PASS=${KEYSTORE_PASS:-gardenkey}
 
 rm -rf build && mkdir -p build/gen build/classes build/dex assets
 cp ../web/index.html assets/index.html
+cp -R ../web/audio assets/
 [ -f res/mipmap-xxxhdpi/ic_launcher.png ] || python3 tools/make_icons.py
 
 echo "== resources + manifest (and R.java)"

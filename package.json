@@ -6,6 +6,7 @@
   "scripts": {
     "splice": "python3 tools/splice.py",
     "check": "python3 tools/splice.py --check",
+    "test": "node tests/current.test.js && node --test tests/browser-regression.test.js && node tests/audio-regression.test.js && node --test tests/bundled-audio.test.js && node tests/glass-ui.test.js",
     "calibrate:heart": "node tools/calibrate-heart.js",
     "calibrate:quantum": "node tools/calibrate-quantum.js",
     "calibrate:mould": "node tools/calibrate-mould.js",

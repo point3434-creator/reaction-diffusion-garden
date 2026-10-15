@@ -29,6 +29,32 @@ test('painted current evolves and stays finite and bounded', () => {
   for (const k of ['A','R','G','Bl']) assert.ok(s[k].every(x => Number.isFinite(x) && x>=0 && x<=1));
   assert.notDeepEqual(Array.from(s.R),before);
 });
+test('total B stays bounded when several pigments grow together', () => {
+  const s = createCurrent(32,24);
+  s.paint(16,12,6,false,[1/3,1/3,1/3]);
+  for (let step=0;step<20;step++) {
+    s.step(.0367,.0649,1,.85,.65);
+    for (let i=0;i<s.A.length;i++) {
+      const b = s.R[i]+s.G[i]+s.Bl[i];
+      assert.ok(Number.isFinite(b) && b>=0 && b<=1+1e-6, `total B=${b} at cell ${i}, step ${step}`);
+    }
+  }
+});
+test('pigment decomposition does not change the chemistry', () => {
+  for (const flow of [0,.85]) {
+    const red = createCurrent(32,24), yellow = createCurrent(32,24);
+    red.paint(16,12,6,false,[1/1.2,.1/1.2,.1/1.2]);
+    yellow.paint(16,12,6,false,[1/2.1,1/2.1,.1/2.1]);
+    for (let step=0;step<10;step++) {
+      red.step(.0367,.0649,1,flow,.65); yellow.step(.0367,.0649,1,flow,.65);
+      for (let i=0;i<red.A.length;i++) {
+        const redB = red.R[i]+red.G[i]+red.Bl[i], yellowB = yellow.R[i]+yellow.G[i]+yellow.Bl[i];
+        assert.ok(Math.abs(red.A[i]-yellow.A[i]) < 1e-5, `A depends on pigment at cell ${i}, step ${step}`);
+        assert.ok(Math.abs(redB-yellowB) < 1e-5, `B depends on pigment at cell ${i}, step ${step}`);
+      }
+    }
+  }
+});
 test('flow strength changes actual chemical fields', () => {
   const a=createCurrent(32,24), b=createCurrent(32,24);
   for (const s of [a,b]) s.paint(10,12,3,false,[.7,.2,.1]);

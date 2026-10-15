@@ -162,6 +162,7 @@ public class MainActivity extends Activity {
                 : name.endsWith(".js") ? "application/javascript"
                 : name.endsWith(".css") ? "text/css"
                 : name.endsWith(".png") ? "image/png"
+                : name.endsWith(".mp3") ? "audio/mpeg"
                 : "application/octet-stream";
         try {
             InputStream in = getAssets().open(name);

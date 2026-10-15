@@ -11,3 +11,5 @@ android/res/mipmap-*/
 # tool output
 tools/out/
 node_modules/
+test-results/
+__pycache__/
