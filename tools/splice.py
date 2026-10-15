@@ -50,6 +50,7 @@ def splice(html):
     current = (SRC / 'current.js').read_text(encoding='utf-8')
     current = '\n'.join(line for line in current.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))
     update = (SRC / 'garden-update.js').read_text(encoding='utf-8')
+    update += '\n' + (SRC / 'panel-art.js').read_text(encoding='utf-8')
     block = '  // BEGIN GARDEN UPDATE\n' + current + '\n' + update + '\n  // END GARDEN UPDATE\n\n'
     marker = '  // ---- go ----'
     if html.count(marker) != 1:
