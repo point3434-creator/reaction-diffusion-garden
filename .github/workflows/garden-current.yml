@@ -1,0 +1,53 @@
+name: Build Liquid Current branch
+on:
+  push:
+    branches: [codex/liquid-current-garden-update]
+permissions:
+  contents: write
+concurrency:
+  group: garden-current-branch
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/liquid-current-garden-update
+      - name: Check Current and source syntax
+        run: |
+          node tests/current.test.js
+          node --check src/current.js
+          node --check src/garden-update.js
+          python3 -m py_compile tools/splice.py tools/import-garden-audio.py
+      - name: Regenerate the application without replacing existing sources
+        run: |
+          python3 tools/splice.py
+          python3 tools/splice.py --check
+          python3 - <<'PY'
+          import pathlib, re
+          html = pathlib.Path('web/index.html').read_text()
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, re.S)
+          pathlib.Path('/tmp/garden-inline.js').write_text('\n'.join(scripts))
+          PY
+          node --check /tmp/garden-inline.js
+      - name: Commit the generated page on this branch only
+        run: |
+          if ! git diff --quiet -- web/index.html; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add web/index.html
+            git commit -m 'Build Liquid Current and soundtrack UI into web/index.html'
+            git push origin HEAD:codex/liquid-current-garden-update
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: garden-current-source
+          path: |
+            web/
+            src/
+            tools/splice.py
+            tools/import-garden-audio.py
+            tests/current.test.js
+          retention-days: 7
