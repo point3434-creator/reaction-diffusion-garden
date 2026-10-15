@@ -298,36 +298,187 @@
     .recbadge i { animation: none; }
   }
 
-/* Green frosted glass: preserve readability even over a bright simulation. */
-:root { --glass: rgba(230,242,231,.88); --ink:#183028; --ink-2:#38584b; --ink-3:#496558; --panel:#edf6ed; --accent:#267651; --accent-ink:#f6fff8; --accent-soft:rgba(38,118,81,.13); --line:rgba(24,48,40,.18); --chip:rgba(255,255,255,.34); --chip-hi:rgba(255,255,255,.58); }
-:root[data-theme="dark"] { --glass:rgba(13,32,24,.9); --ink:#edf6ef; --ink-2:#c1d5c7; --ink-3:#acc7b4; --panel:#203d2e; --accent:#a0dfb1; --accent-ink:#102218; --accent-soft:rgba(160,223,177,.12); --line:rgba(237,246,239,.18); --chip:rgba(237,246,239,.07); --chip-hi:rgba(237,246,239,.14); }
-@media (prefers-color-scheme:dark) {
-  :root:not([data-theme="light"]) { --glass:rgba(13,32,24,.9); --ink:#edf6ef; --ink-2:#c1d5c7; --ink-3:#acc7b4; --panel:#203d2e; --accent:#a0dfb1; --accent-ink:#102218; --accent-soft:rgba(160,223,177,.12); --line:rgba(237,246,239,.18); --chip:rgba(237,246,239,.07); --chip-hi:rgba(237,246,239,.14); }
+/* Botanical glass, UI only. Chemistry, renderer and audio are deliberately untouched.
+   The pane stays translucent; backdrop tone mapping bounds the extremes underneath text.
+   Never put opacity or filter on .panel: that would fade the controls with the glass. */
+:root {
+  --glass: rgba(229,247,232,.42);
+  --glass-optics: blur(14px) saturate(1.08) contrast(.50) brightness(1.35);
+  --glass-top: rgba(255,255,241,.22);
+  --glass-bottom: rgba(125,178,149,.07);
+  --glass-edge: rgba(246,255,238,.65);
+  --glass-crease: rgba(32,80,53,.29);
+  --ink:#102d21; --ink-2:#102b1f; --ink-3:#153023;
+  --panel:rgba(235,252,237,.30); --accent:#1e6942; --accent-ink:#112e21;
+  --accent-soft:rgba(38,111,66,.12); --line:rgba(28,68,44,.20);
+  --chip:rgba(248,255,248,.18); --chip-hi:rgba(249,255,247,.36);
+  --chip-top:rgba(255,255,255,.38); --chip-bottom:rgba(250,255,246,.08);
+  --selected:rgba(66,135,90,.21); --selected-top:rgba(197,234,189,.28);
+  --selected-edge:rgba(23,102,56,.64); --track:rgba(25,75,45,.22);
+  --thumb:#e5f6e7; --text-shadow:0 1px 0 rgba(247,255,238,.18);
+  --glass-fallback:#d9eddd; --glass-strong:rgba(226,244,230,.94);
 }
-.panel { z-index:5; background:linear-gradient(150deg,rgba(255,255,255,.07),transparent 60%),var(--glass); -webkit-backdrop-filter:blur(24px) saturate(1.3); backdrop-filter:blur(24px) saturate(1.3); box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 20px 58px rgba(6,27,17,.24); }
-.chip,.act { border:1px solid var(--line); background:linear-gradient(180deg,rgba(255,255,255,.07),transparent),var(--chip); box-shadow:inset 0 1px 0 rgba(255,255,255,.1); font-weight:600; }
-.chip[aria-pressed="true"],.act[aria-pressed="true"] { background:var(--accent); color:var(--accent-ink); }
-#chem { grid-template-columns:repeat(5,minmax(0,1fr)); }
-#chem .chip { padding-inline:3px; font-size:12px; }
+/* Both explicit and OS dark mode share the same tokens. */
+:root[data-theme="dark"] {
+  --glass:rgba(10,35,27,.34);
+  --glass-optics:blur(14px) saturate(1.16) brightness(.46);
+  --glass-top:rgba(217,245,217,.065); --glass-bottom:rgba(25,79,53,.025);
+  --glass-edge:rgba(225,255,220,.37); --glass-crease:rgba(6,25,17,.54);
+  --ink:#f1f8ec; --ink-2:#e1efdf; --ink-3:#dcebd6;
+  --panel:rgba(164,219,178,.07); --accent:#b8e5ba; --accent-ink:#f1f8ec;
+  --accent-soft:rgba(165,226,172,.09); --line:rgba(205,239,199,.20);
+  --chip:rgba(199,233,204,.04); --chip-hi:rgba(199,233,204,.055);
+  --chip-top:rgba(231,251,222,.105); --chip-bottom:rgba(159,205,170,.015);
+  --selected:rgba(82,148,102,.21); --selected-top:rgba(183,235,161,.10);
+  --selected-edge:rgba(179,239,165,.72); --track:rgba(213,240,211,.21);
+  --thumb:#16352b; --text-shadow:0 1px 3px rgba(2,15,8,.48);
+  --glass-fallback:#173329; --glass-strong:rgba(11,34,24,.95);
+}
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme="light"]) {
+    --glass:rgba(10,35,27,.34);
+    --glass-optics:blur(14px) saturate(1.16) brightness(.46);
+    --glass-top:rgba(217,245,217,.065); --glass-bottom:rgba(25,79,53,.025);
+    --glass-edge:rgba(225,255,220,.37); --glass-crease:rgba(6,25,17,.54);
+    --ink:#f1f8ec; --ink-2:#e1efdf; --ink-3:#dcebd6;
+    --panel:rgba(164,219,178,.07); --accent:#b8e5ba; --accent-ink:#f1f8ec;
+    --accent-soft:rgba(165,226,172,.09); --line:rgba(205,239,199,.20);
+    --chip:rgba(199,233,204,.04); --chip-hi:rgba(199,233,204,.055);
+    --chip-top:rgba(231,251,222,.105); --chip-bottom:rgba(159,205,170,.015);
+    --selected:rgba(82,148,102,.21); --selected-top:rgba(183,235,161,.10);
+    --selected-edge:rgba(179,239,165,.72); --track:rgba(213,240,211,.21);
+    --thumb:#16352b; --text-shadow:0 1px 3px rgba(2,15,8,.48);
+    --glass-fallback:#173329; --glass-strong:rgba(11,34,24,.95);
+  }
+}
+#panel {
+  z-index:5;
+  background-color:var(--glass);
+  background-image:linear-gradient(137deg,var(--glass-top),transparent 38%,var(--glass-bottom));
+  -webkit-backdrop-filter:var(--glass-optics); backdrop-filter:var(--glass-optics);
+  border:1px solid var(--glass-edge); border-bottom:0;
+  box-shadow:inset 1px 0 0 rgba(240,255,220,.13),inset -1px 0 0 var(--glass-crease),
+    inset 0 1px 0 rgba(255,255,230,.25),0 14px 48px rgba(3,23,13,.24);
+  color:var(--ink); text-shadow:var(--text-shadow);
+}
+#panel::before {
+  content:""; position:absolute; inset:3px; border:1px solid rgba(224,248,215,.08);
+  border-radius:inherit; pointer-events:none; z-index:0;
+}
+#panel > .handle,#panel > .masthead,#panel > .tabs,#panel > .tabpanes { position:relative; z-index:2; }
+#panel .masthead { padding:26px 88px 15px 28px; }
+#panel h1 { font-size:25px; line-height:1.10; letter-spacing:-.025em; font-weight:500; margin-bottom:10px; }
+#panel .lede { font-size:12.5px; line-height:1.5; color:var(--ink-2); }
+.botanical-kicker { font-size:9px; font-weight:600; letter-spacing:.21em; margin:0 0 10px; color:var(--ink-3); }
+#panel .tabs {
+  margin:0 24px 6px; padding:4px; gap:4px; border:1px solid var(--line); border-radius:15px;
+  background:var(--panel); box-shadow:inset 0 1px 5px rgba(5,30,14,.07);
+}
+#panel .tab-btn { min-height:36px; padding:7px 2px; font-size:13px; color:var(--ink-2); border:1px solid transparent; }
+#panel .tab-btn[aria-selected="true"] {
+  color:var(--ink); border-color:var(--selected-edge);
+  background:linear-gradient(145deg,var(--selected-top),transparent 85%),var(--selected);
+  box-shadow:inset 0 1px 0 var(--glass-edge),0 2px 7px rgba(4,24,12,.09);
+}
+#panel .tabpanes { padding:0 28px 14px; scrollbar-width:thin; scrollbar-color:var(--line) transparent; }
+#panel .group { padding:15px 0; }
+#panel .group:first-child { padding-top:14px; }
+#panel .eyebrow { font-size:10px; font-weight:600; letter-spacing:.15em; margin-bottom:11px; }
+#panel .chip,#panel .act {
+  position:relative; min-height:38px; padding:8px 13px; border:1px solid var(--line);
+  border-top-color:var(--glass-edge); border-radius:13px;
+  background-color:var(--chip);
+  background-image:linear-gradient(156deg,var(--chip-top),transparent 45%,var(--chip-bottom));
+  color:var(--ink); font-size:13px; font-weight:500; text-shadow:var(--text-shadow);
+  box-shadow:inset 0 1px 0 rgba(242,255,228,.12),inset 0 -1px 0 rgba(3,25,12,.08),0 3px 7px rgba(5,24,14,.07);
+  transition:background-color .18s,border-color .18s,box-shadow .18s,transform .12s;
+}
+#panel .chip[aria-pressed="true"],#panel .act[aria-pressed="true"],
+#panel #gardenScorePlay,#panel .gs-play {
+  background-color:var(--selected); background-image:linear-gradient(145deg,var(--selected-top),transparent 85%);
+  border-color:var(--selected-edge); color:var(--ink);
+  box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 14px rgba(155,219,153,.035),0 3px 9px rgba(5,25,12,.09);
+}
+@media (hover:hover) {
+  #panel .chip:hover,#panel .act:hover,#panel .tab-btn:hover {
+    background-color:var(--chip-hi); border-color:var(--glass-edge);
+  }
+  #panel .chip[aria-pressed="true"]:hover,#panel .act[aria-pressed="true"]:hover,#panel .tab-btn[aria-selected="true"]:hover {
+    background-color:var(--selected); border-color:var(--selected-edge);
+  }
+}
+#panel :focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+#panel .seg { padding:4px; border:1px solid var(--line); gap:4px; background:var(--panel); border-radius:14px; }
+#panel #chem { grid-template-columns:repeat(5,minmax(0,1fr)); }
+#panel #chem .chip { min-width:0; padding:7px 2px; font-size:12px; border-radius:10px; }
+#panel .presets,#panel .actions,#panel .music,#panel .chips { gap:8px; }
+#panel .tune { gap:17px; padding:17px 0; }
+#panel .mapwrap,#panel .map { width:110px; }
+#panel .map { height:110px; }
+#panel .map .bg { fill:var(--panel); stroke:var(--line); stroke-width:1; }
+#panel .mapcap { font-size:11px; line-height:1.5; }
+#panel .sliders { gap:6px; }
+#panel .sliders label { font-size:13px; }
+#panel .sliders output { color:var(--ink-2); font-size:12px; }
+#panel input[type="range"] { height:27px; }
+#panel input[type="range"]::-webkit-slider-runnable-track { height:3px; border-radius:4px; }
+#panel input[type="range"]::-webkit-slider-thumb { margin-top:-7px; height:17px; width:17px; border-width:1.5px; }
+#panel input[type="range"]::-moz-range-track { height:3px; }
+#panel input[type="range"]::-moz-range-thumb { height:15px; width:15px; border-width:1.5px; }
+#panel .note,#panel .track { color:var(--ink-2); }
+#panel .why p,#panel .why ul { font-size:15px; line-height:1.6; }
+#panel .garden-scores,#panel .garden-score { margin-bottom:12px; }
+#panel .garden-scores h2 { font-family:var(--serif); font-size:25px; font-weight:500; margin:16px 0 6px; }
+#panel .garden-scores .actions { margin-top:14px; }
+#panel .score-loop { display:flex; align-items:center; gap:6px; font-size:12px; }
+#panel .score-range { display:flex; align-items:center; gap:12px; font-size:12px; margin-top:10px; }
+#panel .score-range input { flex:1; min-width:0; }
+#panel #gardenScoreStatus { min-height:2.8em; }
+#panel .gs-library .chip { white-space:normal; }
+/* Static, detailed illustration: no animation loop, hit targets, or viewport-level decoration. */
+.panel-botany { position:absolute; display:block; pointer-events:none; z-index:3; overflow:visible; }
+.panel-botany * { pointer-events:none !important; }
+.botany-crown { top:-10px; right:-7px; width:116px; height:188px; }
+.botany-root { bottom:-4px; left:-7px; width:111px; height:78px; }
+.botanical-footer {
+  position:relative; flex:0 0 50px; padding:20px 26px 13px 110px; margin:0;
+  font-size:9px; letter-spacing:.15em; color:var(--ink-3); pointer-events:none; white-space:nowrap;
+}
 .stage canvas { z-index:1; }
-.hint,.unfocus { z-index:4; }
-.garden-vine { position:absolute; width:112px; height:auto; pointer-events:none; z-index:2; opacity:.66; filter:drop-shadow(0 4px 6px rgba(15,35,21,.16)); }
-.vine-left { left:2px; top:62px; }
-.vine-right { right:410px; bottom:18px; width:88px; }
-.garden-vine .stem { fill:none; stroke:#77926d; stroke-width:2; stroke-linecap:round; }
-.garden-vine .leaf { fill:url(#gardenLeaf); opacity:.86; }
-.garden-vine .ochre { fill:#b29862; }
-.garden-vine .plum { fill:#91778e; }
-.app.focus .garden-vine { display:none; }
-.garden-scores { margin-bottom:12px; }
-.garden-scores h2 { font-family:var(--serif); font-size:24px; font-weight:500; margin:14px 0 4px; }
-.garden-scores .actions { margin-top:12px; }
-.score-loop { display:flex; align-items:center; gap:5px; font-size:12px; }
-.score-range { display:flex; align-items:center; gap:12px; font-size:12px; margin-top:10px; }
-.score-range input { flex:1; min-width:0; }
-#gardenScorePlay { background:var(--accent); color:var(--accent-ink); min-width:78px; }
-#gardenScoreStatus { min-height:2.8em; }
-@media (max-width:879px) { .vine-left { width:72px; top:55px; opacity:.5; } .vine-right { right:4px; bottom:90px; width:64px; opacity:.44; } #chem .chip { font-size:11px; } }
+.hint,.unfocus,.recbadge { z-index:4; }
+@media (min-width:880px) {
+  #panel { width:420px; top:22px; bottom:22px; right:22px; border-radius:25px; border-bottom:1px solid var(--glass-edge); }
+}
+@media (max-width:879px) {
+  #panel { border-radius:24px 24px 0 0; --peek:86px; }
+  #panel .tabs { margin-inline:16px; }
+  #panel .tabpanes { padding-inline:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom,0px)); }
+  #panel .chip,#panel .act { min-height:42px; }
+  #panel .tab-btn { min-height:39px; }
+  #panel #chem .chip { font-size:11px; padding-inline:1px; min-height:40px; }
+  #panel .tune { gap:14px; }
+  #panel .mapwrap,#panel .map { width:96px; }
+  #panel .map { height:96px; }
+  .botanical-footer { display:none; }
+  .botany-crown { width:57px; height:92px; top:-16px; right:-2px; }
+  .botany-root { width:54px; height:38px; left:-10px; bottom:-4px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #panel,#panel .chip,#panel .act,#panel .tab-btn { transition:none; }
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  #panel { background:var(--glass-fallback); }
+}
+@media (prefers-contrast:more) {
+  #panel { background:var(--glass-strong); -webkit-backdrop-filter:none; backdrop-filter:none; }
+  #panel .chip,#panel .act,#panel .tab-btn { border-color:var(--ink-2); }
+}
+@media (forced-colors:active) {
+  #panel { background:Canvas; border:1px solid CanvasText; box-shadow:none; backdrop-filter:none; }
+  #panel .chip,#panel .act,#panel .tab-btn { background:ButtonFace; color:ButtonText; border:1px solid ButtonText; text-shadow:none; box-shadow:none; }
+  #panel [aria-pressed="true"],#panel [aria-selected="true"] { outline:2px solid Highlight; outline-offset:-3px; }
+  .panel-botany,.botanical-footer { display:none; }
+}
 </style>
 </head>
 <body>
@@ -4192,6 +4343,72 @@ function createCurrent(w, h) {
   });
   window.addEventListener('pagehide', function () { urls.forEach(function (url) { URL.revokeObjectURL(url); }); });
   choose(0);
+})();
+
+/* Botanical glass illustration. Mounted once; no per-frame work and no audio/physics hooks.
+   Hand-shaped leaf silhouettes use shaded folds, veins and dry-brush marks rather than
+   identical flat icons. Everything is decorative and excludes itself from hit testing. */
+(function installPanelArt() {
+  'use strict';
+  const panel = document.getElementById('panel');
+  if (!panel || panel.dataset.botanicalGlass === '2') return;
+  document.querySelectorAll('.stage > .garden-vine, .stage > .vine').forEach(el => el.remove());
+  panel.dataset.botanicalGlass = '2';
+  const palettes = [
+    ['#193e31','#66875b','#b4c68d','#344f3d'],
+    ['#25483f','#638a7a','#b8d2b3','#314f4c'],
+    ['#544627','#b49857','#e1cb91','#766b43'],
+    ['#442f48','#8e7085','#c8a8ad','#614c69'],
+    ['#284e32','#81a368','#c9d595','#446a40']
+  ];
+  const shapes = [
+    'M0 0 C-12 -7 -27 -18 -22 -41 C-18 -61 -4 -73 1 -94 C8 -72 25 -61 25 -38 C25 -17 11 -4 0 0Z',
+    'M0 0 C-14 -6 -23 -22 -20 -43 C-15 -61 -3 -79 -2 -94 C9 -74 25 -59 22 -38 C21 -18 10 -5 0 0Z',
+    'M0 0 C-7 -8 -29 -22 -23 -44 C-16 -68 -4 -77 3 -96 C7 -75 29 -58 24 -37 C21 -16 7 -5 0 0Z'
+  ];
+  function leaf(id, x, y, angle, length, width, palette, variant) {
+    const [dark,mid,light,fold] = palettes[palette], shape = shapes[variant % 3];
+    let marks = '';
+    for (let k=0;k<8;k++) {
+      const yy=-13-k*8.5, span=17*Math.sin((k+1)/10*Math.PI);
+      marks += `<path d="M1 ${yy.toFixed(1)} Q${(-span*.55).toFixed(1)} ${(yy-7).toFixed(1)} ${(-span).toFixed(1)} ${(yy-14).toFixed(1)} M1 ${yy.toFixed(1)} Q${(span*.7).toFixed(1)} ${(yy-4).toFixed(1)} ${(span+3).toFixed(1)} ${(yy-13).toFixed(1)}" fill="none" stroke="${light}" stroke-opacity=".31" stroke-width=".65"/>`;
+    }
+    // Fixed, irregular dry-brush flecks; not randomized again on resize or tab change.
+    for (let k=0;k<17;k++) {
+      const yy=-10-((k*37+variant*11)%76), xx=-17+((k*13+variant*7)%34);
+      marks += `<path d="M${xx} ${yy} l${2+k%4} ${-2-k%3}" stroke="${k%3 ? light : dark}" stroke-width="${.7+k%2*.6}" opacity=".12"/>`;
+    }
+    return `<g transform="translate(${x} ${y}) rotate(${angle}) scale(${(length/94*width).toFixed(4)} ${(length/94).toFixed(4)})">
+      <defs><linearGradient id="${id}-shade" x1="0" y1=".7" x2="1" y2=".25"><stop stop-color="${dark}"/><stop offset=".43" stop-color="${mid}"/><stop offset=".54" stop-color="${light}"/><stop offset=".64" stop-color="${mid}"/><stop offset="1" stop-color="${dark}"/></linearGradient><clipPath id="${id}-clip"><path d="${shape}"/></clipPath></defs>
+      <path d="${shape}" fill="url(#${id}-shade)" stroke="${dark}" stroke-width=".8"/>
+      <g clip-path="url(#${id}-clip)"><path d="M0 0 Q-4 -31 1 -94 Q-2 -54 13 -27Z" fill="${fold}" opacity=".26"/>${marks}<path d="M0 0 Q3 -28 0 -54 T1 -94" fill="none" stroke="${light}" stroke-width=".95" opacity=".57"/></g>
+      <path d="M0 3 Q-1 -1 0 -7" fill="none" stroke="${mid}" stroke-width="1.5"/>
+    </g>`;
+  }
+  function art(where, viewbox, stems, leaves) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" class="panel-botany botany-${where}" viewBox="${viewbox}" aria-hidden="true" focusable="false"><g fill="none" stroke-linecap="round"><path d="${stems}" stroke="#253c2c" stroke-width="2.5"/><path d="${stems}" stroke="#aaac75" stroke-width="1.15"/><path d="${stems}" stroke="#d3c493" stroke-width=".35"/></g>${leaves}</svg>`;
+  }
+  const crown = [
+    [130,235,-61,52,.90,1], [135,207,48,37,.78,4],
+    [129,180,-56,56,.88,0], [126,148,57,37,.75,2],
+    [119,124,-62,44,.93,3], [128,94,41,37,.80,1],
+    [137,67,-50,36,.81,4], [138,37,-22,32,.72,2],
+    [96,164,-91,31,.80,4], [100,91,-83,30,.78,0]
+  ].map((p,i)=>leaf('bg-c'+i,...p,i)).join('');
+  panel.insertAdjacentHTML('beforeend', art('crown','0 0 156 252',
+    'M143 258 C137 228 123 207 132 184 S118 145 122 118 S149 63 137 10 M132 184 Q114 179 96 164 M129 207 L135 207 M126 153 L126 148 M125 118 Q107 107 100 91 M128 98 L128 94 M139 65 L137 67',crown));
+  const root = [
+    [43,78,-57,44,.92,4], [50,63,19,51,.90,1],
+    [81,75,-4,42,.84,2], [106,77,56,41,.87,0],
+    [142,80,65,31,.82,3], [29,94,-90,32,.80,0]
+  ].map((p,i)=>leaf('bg-r'+i,...p,i+11)).join('');
+  panel.insertAdjacentHTML('beforeend', art('root','0 0 170 116',
+    'M-7 120 C18 99 28 77 56 73 S116 101 165 75 M38 86 L43 78 M51 74 L50 63 M69 75 L81 75 M94 87 L106 77 M128 89 L142 80 M23 101 L29 94',root));
+  const header = panel.querySelector('.masthead');
+  if (header && !header.querySelector('.botanical-kicker')) {
+    header.insertAdjacentHTML('afterbegin','<p class="botanical-kicker" aria-hidden="true">A LIVING AUDIOVISUAL CANVAS</p>');
+  }
+  panel.insertAdjacentHTML('beforeend','<p class="botanical-footer" aria-hidden="true">SOUND &nbsp;·&nbsp; PIGMENT &nbsp;·&nbsp; MOTION</p>');
 })();
 
   // END GARDEN UPDATE
