@@ -5,6 +5,7 @@
   state.currentFlow = 0.85;
   state.currentSpin = 0.65;
   CHEMS.current = Object.assign({}, CHEMS.garden, {
+    stir: false,
     lede: 'A flowing garden: paint living ribbons and let the current carry them into eddies.',
     hint: 'Paint a ribbon; the current carries the chemistry along'
   });
@@ -55,7 +56,7 @@
     ['Velvet Circuit', 'Velvet_Circuit.mp3', '112 BPM · Psychedelic guitar funk']
   ];
   var host = document.createElement('div'); host.id = 'gardenScores'; host.className = 'group garden-scores';
-  host.innerHTML = '<h3 class="eyebrow">Garden soundtrack</h3><div class="chips" id="gardenScoreLibrary" role="group" aria-label="Garden soundtrack"></div><h2 id="gardenScoreTitle"></h2><p class="note" id="gardenScoreMeta"></p><div class="actions"><button type="button" class="act" id="gardenScorePlay">Play</button><button type="button" class="act" id="gardenScoreRestart">Restart</button><label class="score-loop"><input type="checkbox" id="gardenScoreLoop" checked> Repeat</label></div><label class="score-range">Position <input id="gardenScoreSeek" type="range" min="0" max="1000" value="0" aria-label="Track position"></label><label class="score-range">Volume <input id="gardenScoreVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Track volume"></label><p class="note" id="gardenScoreStatus" role="status"></p><button type="button" class="act" id="gardenAudioLoad">Load downloaded recordings</button><input id="gardenAudioFiles" type="file" accept="audio/*" multiple hidden>';
+  host.innerHTML = '<h3 class="eyebrow">Garden soundtrack</h3><div class="chips" id="gardenScoreLibrary" role="group" aria-label="Garden soundtrack"></div><h2 id="gardenScoreTitle"></h2><p class="note" id="gardenScoreMeta"></p><div class="actions"><button type="button" class="act" id="gardenScorePlay">Play</button><button type="button" class="act" id="gardenScoreRestart">Restart</button><label class="score-loop"><input type="checkbox" id="gardenScoreLoop" checked> Repeat</label></div><label class="score-range">Position <input id="gardenScoreSeek" type="range" min="0" max="1000" value="0" aria-label="Track position"></label><label class="score-range">Volume <input id="gardenScoreVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Track volume"></label><p class="note" id="gardenScoreStatus" role="status"></p><button type="button" class="act" id="gardenAudioLoad">Load your recordings</button><input id="gardenAudioFiles" type="file" accept="audio/*" multiple hidden>';
   var sound = document.querySelector('[data-pane="sound"]'); sound.insertBefore(host, sound.firstChild);
   var selected = 0, activeSource = '', urls = new Map();
   function source() { return urls.get(tracks[selected][1]) || 'audio/' + tracks[selected][1]; }
@@ -69,7 +70,7 @@
   function choose(i) {
     stopMusic(); selected = i; activeSource = '';
     $('gardenScoreTitle').textContent = tracks[i][0]; $('gardenScoreMeta').textContent = tracks[i][2];
-    $('gardenScoreStatus').textContent = 'Choose Play, or load the recordings saved from chat.';
+    $('gardenScoreStatus').textContent = 'Choose Play to listen.';
     Array.from($('gardenScoreLibrary').children).forEach(function (b, j) { b.setAttribute('aria-pressed', String(i === j)); });
     refresh();
   }
@@ -96,17 +97,26 @@
     Array.from(this.files || []).forEach(function (file) {
       var track = tracks.find(function (t) { return t[1].toLowerCase() === file.name.toLowerCase(); });
       if (!track) return;
-      if (urls.has(track[1])) URL.revokeObjectURL(urls.get(track[1]));
-      urls.set(track[1], URL.createObjectURL(file)); count++;
+      var old = urls.get(track[1]), url = URL.createObjectURL(file);
+      var active = activeSource && audio.getAttribute('src') === activeSource && track === tracks[selected];
+      var resume = active && !audio.paused;
+      urls.set(track[1], url); count++;
+      if (active) {
+        activeSource = url; audio.src = url;
+        if (resume) startSong(); else refresh();
+      }
+      if (old) URL.revokeObjectURL(old);
     });
-    this.value = ''; $('gardenScoreStatus').textContent = count ? count + ' recordings loaded locally.' : 'Choose the five named MP3 recordings from the soundtrack download.';
+    this.value = ''; $('gardenScoreStatus').textContent = count ? count + ' recordings loaded locally.' : 'Choose recordings named after the five soundtrack tracks.';
   });
   ['play','pause','ended','timeupdate','loadedmetadata'].forEach(function (name) { audio.addEventListener(name, refresh); });
   audio.addEventListener('error', function () {
     if (activeSource && audio.getAttribute('src') === activeSource) {
-      setMusicOn(false); $('gardenScoreStatus').textContent = 'This recording is not in the checkout yet. Use Load downloaded recordings, or place the MP3s in web/audio/.'; refresh();
+      setMusicOn(false); $('gardenScoreStatus').textContent = 'This recording could not be played. Try again or load a local recording.'; refresh();
     }
   });
-  window.addEventListener('pagehide', function () { urls.forEach(function (url) { URL.revokeObjectURL(url); }); });
+  window.addEventListener('pagehide', function (event) {
+    if (!event.persisted) urls.forEach(function (url) { URL.revokeObjectURL(url); });
+  });
   choose(0);
 })();

@@ -22,10 +22,13 @@ It started as a toy for Turing patterns: two chemicals, two rules, every pattern
 
 **Sound.** A song file, the microphone, or a shared screen's audio (on a computer, which is how you listen to Spotify) drives the dish: kicks plant seeds, pace the heart or throw particles, pulse the surface and turn the colours; snares clear a patch in the garden; loudness sets the pace; the brightness of the sound picks the colour of new seeds. Five beats are built in, each an original loop in homage to one producer's feel, synthesized note by note as it plays: Drunk swing, G-funk, Chop & scratch, Shaolin dust and Soul horns. Nothing is sampled.
 
+The Sound tab also includes five bundled recordings: **Liquid Bloom**, **Mycelium Dream · Violin**, **Prism Orchard**, **Neon Thistle**, and **Velvet Circuit**. Choose a track under Garden soundtrack and press Play. The original five synthesized beats remain available. Keep the `web/audio/` directory beside `web/index.html` when copying the web app; Android builds include the same recordings in their assets.
+
 ## Layout
 
 ```
-web/index.html      the whole app, one file; open it in a browser
+web/index.html      the app; open it in a browser
+web/audio/          the five bundled soundtrack recordings
 src/                the pieces worth editing on their own, spliced into the page by tools/splice.py
   frag.glsl           the fragment shader: the height map, the lights, every material
   heart.js            the excitable-tissue model
@@ -62,9 +65,11 @@ sudo apt install aapt apksigner zipalign dalvik-exchange android-sdk-platform-23
 KEYSTORE=/path/to/garden.keystore KEYSTORE_PASS=yourpassword ./android/build.sh
 ```
 
-The result is `android/build/garden.apk`, about 120 KB. Android updates an app in place only when every build is signed with the same key, so keep the keystore outside the repository and point the build at it; without one the script makes a fresh key, which installs as a new app rather than an update.
+The result is `android/build/garden.apk`, including about 28 MB of soundtrack recordings. Android updates an app in place only when every build is signed with the same key, so keep the keystore outside the repository and point the build at it; without one the script makes a fresh key, which installs as a new app rather than an update.
 
 ## Checking the physics
+
+Run `npm run check` to verify the generated page and `npm test` for Current chemistry, browser recovery/input, soundtrack playback, and responsive UI regressions. Install the test browser with `npx playwright install chromium`. `python3 tests/android-assets.test.py` checks Android asset staging without requiring a full Android SDK; building and testing the APK on a device remains a separate check.
 
 ```
 npm install
