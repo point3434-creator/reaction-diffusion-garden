@@ -1810,6 +1810,7 @@ function hueRGB(hue) {
   }
   function setupRenderBuffers() {
     if (gl) {
+      gl.useProgram(glProgram); gl.bindVertexArray(glVao);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, sim.w, sim.h, 0, gl.RGBA, gl.FLOAT, null);
       fieldBuf = new Float32Array(sim.w * sim.h * 4);
@@ -1905,6 +1906,7 @@ function hueRGB(hue) {
 
   // ---- lit renderer (WebGL2): one height map, thirteen materials; the flat 2D renderer below is the fallback ----
   var gl = null, glTex = null, glLut = null, fieldBuf = null, glU = {}, glLost = false;
+  var glProgram = null, glVao = null;
   var VERT = "#version 300 es\nin vec2 aPos;\nout vec2 vUv;\nvoid main() {\n  vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5);\n  gl_Position = vec4(aPos, 0.0, 1.0);\n}\n";
   var FRAG = `#version 300 es
 precision highp float;
@@ -1930,7 +1932,7 @@ uniform vec3 uLampCol[3];
 uniform float uLampR;      // a lamp's marker, in cells
 uniform vec3 uSun;         // toward the sun
 uniform vec3 uSunCol;
-uniform int uPass;         // 1 draws the domes' heights for the rays, into uHeight; 0 draws the dish
+uniform int uPass;         // 1 shadow profile; 2 actual path-tracing surface; 0 draws the dish
 uniform sampler2D uHeight; // those heights, smoothed, at twice the grid's resolution
 in vec2 vUv;
 out vec4 outColor;
@@ -2117,6 +2119,11 @@ void main() {
   // would be ragged a cell at a time
   // and, for see-through materials, the colour each dome gives the light crossing it
   if (uPass == 1) { vec4 c1 = fieldAt(vUv); float b1 = bsum(c1); outColor = vec4(blockerOf(b1), filterOf(c1, b1)); return; }
+  if (uPass == 2) {
+    vec4 c1 = fieldAt(vUv); float b1 = bsum(c1);
+    float h1 = uHeart > 0.5 && c1.a <= -0.5 ? 0.0 : heightOf(b1);
+    outColor = vec4(h1, filterOf(c1, b1)); return;
+  }
   vec2 px = 1.0 / uTexSize;
   vec4 c = fieldAt(vUv);
   float b = bsum(c);
@@ -2512,6 +2519,8 @@ void main() {
       gl.linkProgram(prog);
       if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
       gl.useProgram(prog);
+      glProgram = prog;
+      glVao = gl.createVertexArray(); gl.bindVertexArray(glVao);
       var buf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
@@ -2570,6 +2579,7 @@ void main() {
     fitCanvas();
     if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
     glLost = false;
+    initializePathTracing();
   }
   listenCanvas('webglcontextlost', function (event) {
     event.preventDefault();
@@ -2577,6 +2587,7 @@ void main() {
   });
   listenCanvas('webglcontextrestored', initializeRenderer);
   function renderGL(dark) {
+    gl.useProgram(glProgram); gl.bindVertexArray(glVao);
     var n = sim.w * sim.h, R = sim.R, G = sim.G, Bl = sim.Bl, A = sim.A, fb = fieldBuf;
     for (var i = 0, j = 0; i < n; i++, j += 4) { fb[j] = R[i]; fb[j + 1] = G[i]; fb[j + 2] = Bl[i]; fb[j + 3] = A[i]; }
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
@@ -2698,7 +2709,7 @@ void main() {
   function render() {
     var dark = isDark();
     if (dark !== lastDark) { lastDark = dark; applyStageBackground(); }
-    if (gl) { renderGL(dark); return; }
+    if (gl) { if (!renderPathTraced(dark)) renderGL(dark); return; }
     if (PALETTES[state.palette].lineage) renderLineage(dark); else renderMono();
     ctx.putImageData(img, 0, 0);
   }
@@ -4460,6 +4471,751 @@ function createCurrent(w, h) {
     header.insertAdjacentHTML('afterbegin','<p class="botanical-kicker" aria-hidden="true">A LIVING AUDIOVISUAL CANVAS</p>');
   }
   panel.insertAdjacentHTML('beforeend','<p class="botanical-footer" aria-hidden="true">SOUND &nbsp;·&nbsp; PIGMENT &nbsp;·&nbsp; MOTION</p>');
+})();
+
+// Pure policy shared by the browser renderer and its focused regression tests.
+function pathTraceSize(width, height, quality, moving) {
+  var budget = moving ? 98304 : quality === 'fine' ? 786432 : 262144;
+  var scale = Math.min(1, Math.sqrt(budget / (width * height)));
+  return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) };
+}
+
+function createPathTraceHistory() {
+  return {
+    samples: 0, seed: 0, key: null,
+    begin: function (key, changed, moving) {
+      var reset = this.key !== key || changed || moving;
+      if (reset) this.samples = 0;
+      this.key = key;
+      return reset;
+    },
+    commit: function () {
+      this.samples = Math.min(4096, this.samples + 1);
+      this.seed = (this.seed + 1) >>> 0;
+    },
+    reset: function () { this.samples = 0; this.key = null; }
+  };
+}
+  var PATH_FRAG = `#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+
+uniform sampler2D uSurface;
+uniform sampler2D uPrevious;
+uniform sampler2D uField;
+uniform vec2 uTexSize;
+uniform vec2 uResolution;
+uniform float uBump;
+uniform float uGlow;
+uniform float uLightTheme;
+uniform vec3 uBg;
+uniform int uMat;
+uniform int uChem; // 0 garden/current, 1 heart, 2 quantum, 3 mould
+uniform int uLight;
+uniform int uBounces;
+uniform int uSamples;
+uniform uint uSeed;
+uniform vec2 uTilt;
+uniform vec4 uLamp[3];
+uniform vec3 uLampCol[3];
+uniform vec3 uSun;
+uniform vec3 uSunCol;
+in vec2 vUv;
+out vec4 outColor;
+
+const float PI = 3.141592653589793;
+const float FAR = 1e20;
+const float EPS = 0.0004; // world units are simulation cells
+const float FLOOR_Z = -0.35;
+const int MAX_CELLS = 1024;
+
+// kind: -1 none, 0 closed heightfield, 1 floor, 2 sampled lamp.
+// tint is linear reflectance for surfaces, radiance for a lamp.
+struct RayHit { float t; vec3 normal; vec3 tint; int kind; };
+
+uint randomState;
+float randomFloat() {
+  randomState ^= randomState << 13;
+  randomState ^= randomState >> 17;
+  randomState ^= randomState << 5;
+  return float(randomState >> 8) * (1.0 / 16777216.0);
+}
+vec3 toLinear(vec3 c) {
+  c = max(c, vec3(0.0));
+  return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
+vec3 cosineDirection(vec3 n) {
+  float r = sqrt(randomFloat()), a = 2.0 * PI * randomFloat();
+  vec3 tangent = normalize(cross(abs(n.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0), n));
+  return normalize(tangent * (r * cos(a)) + cross(n, tangent) * (r * sin(a)) + n * sqrt(max(0.0, 1.0 - r * r)));
+}
+vec3 offsetRay(vec3 p, vec3 geometricNormal, vec3 direction) {
+  return p + geometricNormal * (dot(geometricNormal, direction) >= 0.0 ? EPS : -EPS);
+}
+
+// The prepass has top-down vUv, while a framebuffer's texel Y points up.
+// Texels are mesh vertices: first/last vertices lie exactly on the dish bounds.
+vec4 vertexData(ivec2 p) {
+  ivec2 size = textureSize(uSurface, 0);
+  vec4 value = texelFetch(uSurface, ivec2(p.x, size.y - 1 - p.y), 0);
+  return vec4(clamp(value.r, 0.0, 1.0) * uBump, value.gba);
+}
+void cellData(ivec2 cell, out vec4 a, out vec4 b, out vec4 c, out vec4 d) {
+  a = vertexData(cell);
+  b = vertexData(cell + ivec2(1, 0));
+  c = vertexData(cell + ivec2(1, 1));
+  d = vertexData(cell + ivec2(0, 1));
+}
+void meshAt(vec2 p, out float height, out vec3 normal, out vec3 tint) {
+  ivec2 cells = textureSize(uSurface, 0) - 1;
+  vec2 spacing = uTexSize / vec2(cells);
+  vec2 grid = clamp(p / spacing, vec2(0.0), vec2(cells));
+  ivec2 cell = clamp(ivec2(floor(grid)), ivec2(0), cells - 1);
+  vec2 f = grid - vec2(cell);
+  vec4 a, b, c, d; cellData(cell, a, b, c, d);
+  a.gba = toLinear(a.gba); b.gba = toLinear(b.gba);
+  c.gba = toLinear(c.gba); d.gba = toLinear(d.gba);
+  vec4 value;
+  if (f.x >= f.y) {
+    value = a * (1.0 - f.x) + b * (f.x - f.y) + c * f.y;
+    normal = normalize(vec3(-(b.r - a.r) / spacing.x, -(c.r - b.r) / spacing.y, 1.0));
+  } else {
+    value = a * (1.0 - f.y) + c * f.x + d * (f.y - f.x);
+    normal = normalize(vec3(-(c.r - d.r) / spacing.x, -(d.r - a.r) / spacing.y, 1.0));
+  }
+  height = value.r; tint = value.gba;
+}
+bool clipAxis(float origin, float direction, float low, float high, inout float nearT, inout float farT) {
+  if (abs(direction) < 1e-10) return origin >= low && origin <= high;
+  float a = (low - origin) / direction, b = (high - origin) / direction;
+  nearT = max(nearT, min(a, b)); farT = min(farT, max(a, b));
+  return farT >= nearT;
+}
+bool intersectTriangle(vec3 origin, vec3 direction, vec3 a, vec3 b, vec3 c,
+                       float lowT, float highT, out float t, out vec3 weights) {
+  vec3 e1 = b - a, e2 = c - a, p = cross(direction, e2);
+  float det = dot(e1, p);
+  if (abs(det) < 1e-10) return false;
+  vec3 s = origin - a, q = cross(s, e1);
+  float u = dot(s, p) / det, v = dot(direction, q) / det;
+  t = dot(e2, q) / det;
+  weights = vec3(1.0 - u - v, u, v);
+  return min(weights.x, min(weights.y, weights.z)) >= -1e-5 && t > EPS * 0.25 && t >= lowT - EPS * 0.25 && t <= highT + EPS * 0.25;
+}
+void boundaryHit(vec3 origin, vec3 direction, float t, vec3 n, inout RayHit hit) {
+  if (t <= EPS * 0.25 || t >= hit.t) return;
+  vec3 p = origin + direction * t;
+  if (any(lessThan(p.xy, vec2(-EPS))) || any(greaterThan(p.xy, uTexSize + EPS))) return;
+  float height; vec3 normal, tint; meshAt(p.xy, height, normal, tint);
+  if (height <= 0.0 || p.z < -EPS * 0.25 || p.z > height + EPS * 0.25) return;
+  hit = RayHit(t, n, tint, 0);
+}
+
+// Exact intersections with a finite triangle mesh, its base, and its side walls.
+// A traversal that exhausts the budget is NOT a miss: callers absorb that path.
+bool traceSolid(vec3 origin, vec3 direction, float tMax, out RayHit hit, out bool exhausted) {
+  hit = RayHit(tMax, vec3(0.0), vec3(0.0), -1); exhausted = false;
+  float nearT = 0.0, farT = tMax;
+  if (!clipAxis(origin.x, direction.x, 0.0, uTexSize.x, nearT, farT) ||
+      !clipAxis(origin.y, direction.y, 0.0, uTexSize.y, nearT, farT) ||
+      !clipAxis(origin.z, direction.z, 0.0, uBump, nearT, farT) || farT <= EPS * 0.25) return false;
+  if (abs(direction.z) > 1e-10) boundaryHit(origin, direction, -origin.z / direction.z, vec3(0.0, 0.0, -1.0), hit);
+  if (abs(direction.x) > 1e-10) {
+    boundaryHit(origin, direction, -origin.x / direction.x, vec3(-1.0, 0.0, 0.0), hit);
+    boundaryHit(origin, direction, (uTexSize.x - origin.x) / direction.x, vec3(1.0, 0.0, 0.0), hit);
+  }
+  if (abs(direction.y) > 1e-10) {
+    boundaryHit(origin, direction, -origin.y / direction.y, vec3(0.0, -1.0, 0.0), hit);
+    boundaryHit(origin, direction, (uTexSize.y - origin.y) / direction.y, vec3(0.0, 1.0, 0.0), hit);
+  }
+  ivec2 cells = textureSize(uSurface, 0) - 1;
+  vec2 spacing = uTexSize / vec2(cells);
+  // Nudge only the cell selection, never the tested ray or intersection interval.
+  vec2 p = (origin.xy + direction.xy * (nearT + EPS * 0.25)) / spacing;
+  ivec2 cell = clamp(ivec2(floor(p)), ivec2(0), cells - 1);
+  ivec2 stepCell = ivec2(sign(direction.xy));
+  vec2 nextT = vec2(FAR), deltaT = vec2(FAR);
+  if (stepCell.x != 0) {
+    nextT.x = ((float(cell.x) + (stepCell.x > 0 ? 1.0 : 0.0)) * spacing.x - origin.x) / direction.x;
+    deltaT.x = spacing.x / abs(direction.x);
+  }
+  if (stepCell.y != 0) {
+    nextT.y = ((float(cell.y) + (stepCell.y > 0 ? 1.0 : 0.0)) * spacing.y - origin.y) / direction.y;
+    deltaT.y = spacing.y / abs(direction.y);
+  }
+  float startT = nearT;
+  for (int i = 0; i < MAX_CELLS; i++) {
+    float endT = min(min(nextT.x, nextT.y), min(farT, hit.t));
+    vec4 a, b, c, d; cellData(cell, a, b, c, d);
+    vec2 lo = vec2(cell) * spacing, hi = lo + spacing;
+    vec3 pa = vec3(lo, a.r), pb = vec3(hi.x, lo.y, b.r);
+    vec3 pc = vec3(hi, c.r), pd = vec3(lo.x, hi.y, d.r);
+    float t; vec3 w;
+    if (max(a.r, max(b.r, c.r)) > 0.0 && intersectTriangle(origin, direction, pa, pb, pc, startT, endT, t, w) && t < hit.t) {
+      hit = RayHit(t, normalize(cross(pb - pa, pc - pa)), toLinear(a.gba) * w.x + toLinear(b.gba) * w.y + toLinear(c.gba) * w.z, 0);
+    }
+    if (max(a.r, max(c.r, d.r)) > 0.0 && intersectTriangle(origin, direction, pa, pc, pd, startT, min(endT, hit.t), t, w) && t < hit.t) {
+      hit = RayHit(t, normalize(cross(pc - pa, pd - pa)), toLinear(a.gba) * w.x + toLinear(c.gba) * w.y + toLinear(d.gba) * w.z, 0);
+    }
+    if (hit.kind >= 0 && hit.t <= endT + EPS * 0.25) return true;
+    if (endT >= farT) return hit.kind >= 0;
+    bool stepX = nextT.x <= nextT.y;
+    bool stepY = nextT.y <= nextT.x;
+    startT = min(nextT.x, nextT.y);
+    if (stepX) { cell.x += stepCell.x; nextT.x += deltaT.x; }
+    if (stepY) { cell.y += stepCell.y; nextT.y += deltaT.y; }
+    if (any(lessThan(cell, ivec2(0))) || any(greaterThanEqual(cell, cells))) return hit.kind >= 0;
+  }
+  exhausted = true;
+  hit.kind = -1;
+  return false;
+}
+
+vec3 floorTint(vec2 p) {
+  vec3 c = toLinear(uBg);
+  if (uMat == 12) {
+    vec2 line = abs(fract(p * 0.2 + 0.5) - 0.5) * 5.0;
+    float grid = 1.0 - smoothstep(0.045, 0.11, min(line.x, line.y));
+    c = mix(c, mix(vec3(0.11), c * 0.45, uLightTheme), grid * 0.7);
+  }
+  c = clamp(c, vec3(0.008), vec3(0.9));
+  if (uChem > 0 && all(greaterThanEqual(p, vec2(0.0))) && all(lessThanEqual(p, uTexSize))) {
+    vec2 uv = p / uTexSize;
+    // CPU field rows already use the dish's top-down coordinates. Only the
+    // framebuffer-produced surface texture needs a Y flip.
+    float metadata = texture(uField, uv).a;
+    vec3 tint = texture(uSurface, vec2(uv.x, 1.0 - uv.y)).gba;
+    float scar = step(metadata, -0.5), light = uLightTheme;
+    vec3 bg = uBg;
+    if (uChem == 1) {
+      float recovery = clamp(metadata, 0.0, 1.0) * (1.0 - scar);
+      bg = mix(bg, mix(bg, tint, 0.3) + 0.045, recovery * (1.0 - light));
+      bg = mix(bg, bg * mix(vec3(1.0), tint, 0.3) * 0.92, recovery * light);
+      // Fixed world-space grain stays stationary across samples and reflections.
+      vec3 grain = fract(vec3(floor(p * 3.0).xyx) * 0.1031);
+      grain += dot(grain, grain.yzx + 33.33);
+      float rough = 0.7 + 0.3 * fract((grain.x + grain.y) * grain.z);
+      bg = mix(bg, mix(uBg * 2.2 + 0.05, uBg * 0.72, light) * rough, scar);
+    } else {
+      float amount = clamp(-metadata, 0.0, 0.45) / 0.45 * (1.0 - scar);
+      vec3 pool = uChem == 2 ? mix(bg * 0.45 + vec3(0.02, 0.03, 0.05), bg * 0.8, light) :
+        mix(bg * 0.5 + tint * 0.22, bg * mix(vec3(1.0), tint, 0.5) * 0.86, light);
+      bg = mix(bg, pool, amount);
+      bg = mix(bg, mix(uBg * 2.6 + 0.12, uBg * 0.62, light), scar);
+    }
+    // Preserve the existing annotation contrast above the floor's visibility
+    // minimum; clamping the annotated color to that minimum would erase dark
+    // potentials and food. Annotations change reflectance, never scene geometry.
+    c = clamp(c + toLinear(bg) - toLinear(uBg), vec3(0.0), vec3(0.9));
+  }
+  return c;
+}
+float lampRadius(int i) { return max(0.8, uLamp[i].z * 0.12); }
+vec3 lampEmission(int i) { return max(uLampCol[i], vec3(0.0)) * 32.0; }
+void traceLamps(vec3 origin, vec3 direction, inout RayHit hit) {
+  if (uLight != 1 || abs(direction.z) < 1e-10) return;
+  for (int i = 0; i < 3; i++) {
+    if (uLamp[i].w < 0.5) continue;
+    float t = (uLamp[i].z - origin.z) / direction.z;
+    vec2 d = origin.xy + direction.xy * t - uLamp[i].xy * uTexSize;
+    if (t > EPS * 0.25 && t < hit.t && dot(d, d) <= lampRadius(i) * lampRadius(i))
+      hit = RayHit(t, vec3(0.0, 0.0, -1.0), lampEmission(i), 2);
+  }
+}
+bool traceScene(vec3 origin, vec3 direction, float tMax, out RayHit hit, out bool exhausted) {
+  // Limit mesh traversal to the first floor/light candidate, if any.
+  RayHit other = RayHit(tMax, vec3(0.0), vec3(0.0), -1);
+  if (abs(direction.z) > 1e-10) {
+    float t = (FLOOR_Z - origin.z) / direction.z;
+    if (t > EPS * 0.25 && t < other.t) other = RayHit(t, vec3(0.0, 0.0, 1.0), floorTint(origin.xy + direction.xy * t), 1);
+  }
+  traceLamps(origin, direction, other);
+  bool found = traceSolid(origin, direction, other.t, hit, exhausted);
+  if (exhausted) return false;
+  if (!found) hit = other;
+  return hit.kind >= 0;
+}
+RayHit primaryHit(vec3 origin) {
+  float h; vec3 n, tint; meshAt(origin.xy, h, n, tint);
+  RayHit hit = h > 0.0 ? RayHit(origin.z - h, n, tint, 0) :
+    RayHit(origin.z - FLOOR_Z, vec3(0.0, 0.0, 1.0), floorTint(origin.xy), 1);
+  traceLamps(origin, vec3(0.0, 0.0, -1.0), hit);
+  return hit;
+}
+
+// Exact unpolarized dielectric Fresnel reflectance, including total internal reflection.
+float fresnelDielectric(float cosIncident, float etaI, float etaT) {
+  float ci = clamp(abs(cosIncident), 0.0, 1.0), eta = etaI / etaT;
+  float sinT2 = eta * eta * max(0.0, 1.0 - ci * ci);
+  if (sinT2 >= 1.0) return 1.0;
+  float ct = sqrt(max(0.0, 1.0 - sinT2));
+  float rs = (etaI * ci - etaT * ct) / max(etaI * ci + etaT * ct, 1e-10);
+  float rp = (etaT * ci - etaI * ct) / max(etaT * ci + etaI * ct, 1e-10);
+  return clamp(0.5 * (rs * rs + rp * rp), 0.0, 1.0);
+}
+bool dielectricMaterial() { return uMat == 0 || uMat == 8 || uMat == 10 || uMat == 12; }
+float materialIor() { return uMat == 8 ? 1.31 : uMat == 10 ? 1.34 : uMat == 12 ? 1.53 : 1.5; }
+vec3 absorption(vec3 tint) {
+  float saturation = uMat == 10 ? 0.2 : uMat == 8 ? 0.35 : 0.7;
+  return -log(clamp(mix(vec3(0.98), tint, saturation), vec3(0.025), vec3(0.999))) / 6.0;
+}
+vec3 diffuseColor(RayHit hit) {
+  if (hit.kind == 1) return hit.tint;
+  vec3 c = hit.tint;
+  if (uMat == 2) c *= 0.65;
+  if (uMat == 3) c = mix(c, vec3(0.9, 0.78, 0.6), 0.18);
+  if (uMat == 5 || uMat == 6) c = mix(toLinear(uBg), c, 0.65);
+  return clamp(c, vec3(0.01), vec3(0.9));
+}
+vec3 surfaceEmission(RayHit hit, vec3 p) {
+  if (hit.kind != 0 || !(uMat == 4 || uMat == 7 || uMat == 9 || uMat == 11)) return vec3(0.0);
+  float h = clamp(p.z / max(uBump, 0.001), 0.0, 1.0);
+  float q = 1.0 - sqrt(max(0.0, 1.0 - h * h));
+  float band = uMat == 4 ? exp(-pow((q - 0.14) / 0.11, 2.0)) :
+    uMat == 11 ? pow(0.5 + 0.5 * cos(q * PI * 12.0), 12.0) : h;
+  return mix(hit.tint, vec3(1.0), band * 0.35) * (0.25 + 2.5 * band) * (0.7 + max(0.0, uGlow));
+}
+const float SUN_COS = 0.9996875163; // angular radius 0.025 radians
+vec3 sunEmission() { return max(uSunCol, vec3(0.0)) * (2.2 / (PI * (1.0 - SUN_COS * SUN_COS))); }
+vec3 environment(vec3 d, bool includeSun) {
+  float sky = clamp(d.z * 0.5 + 0.5, 0.0, 1.0);
+  vec3 c = mix(vec3(0.025, 0.03, 0.045), vec3(0.28, 0.35, 0.46), sky);
+  if (uLight == 0) {
+    vec3 key = normalize(vec3(-0.45 + uTilt.x, -0.55 + uTilt.y, 0.8));
+    vec3 fill = normalize(vec3(0.7 + uTilt.x * 0.3, 0.35 + uTilt.y * 0.3, 0.7));
+    c += vec3(5.0, 4.65, 4.1) * pow(max(0.0, dot(d, key)), 28.0);
+    c += vec3(1.5, 1.8, 2.3) * pow(max(0.0, dot(d, fill)), 18.0);
+  } else {
+    c *= 0.4;
+    if (uLight == 2 && includeSun && dot(d, normalize(uSun)) >= SUN_COS) c += sunEmission();
+  }
+  return c;
+}
+bool unoccluded(vec3 p, vec3 normal, vec3 direction, float distance) {
+  RayHit obstruction; bool exhausted;
+  bool blocked = traceScene(offsetRay(p, normal, direction), direction, max(EPS, distance - EPS * 3.0), obstruction, exhausted);
+  return !blocked && !exhausted;
+}
+vec3 directLight(vec3 p, vec3 n, vec3 albedo) {
+  if (uLight == 1) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) if (uLamp[i].w >= 0.5) count++;
+    if (count == 0) return vec3(0.0);
+    int selected = min(int(randomFloat() * float(count)), count - 1), lamp = 0;
+    for (int i = 0; i < 3; i++) {
+      if (uLamp[i].w >= 0.5) { if (selected == 0) { lamp = i; break; } selected--; }
+    }
+    float radius = lampRadius(lamp), r = radius * sqrt(randomFloat()), a = 2.0 * PI * randomFloat();
+    vec3 point = vec3(uLamp[lamp].xy * uTexSize + r * vec2(cos(a), sin(a)), uLamp[lamp].z);
+    vec3 delta = point - p;
+    float distance2 = dot(delta, delta), distance = sqrt(distance2);
+    vec3 wi = delta / max(distance, EPS);
+    float cosSurface = max(0.0, dot(n, wi)), cosLight = abs(wi.z);
+    if (cosSurface <= 0.0 || cosLight <= 0.0 || !unoccluded(p, n, wi, distance)) return vec3(0.0);
+    // PDF in solid angle: distance^2 / (cos(light) * disk area * active lamps).
+    float inversePdf = float(count) * PI * radius * radius * cosLight / max(distance2, EPS);
+    return albedo * (cosSurface / PI) * lampEmission(lamp) * inversePdf;
+  }
+  if (uLight == 2) {
+    vec3 axis = normalize(uSun);
+    vec3 tangent = normalize(cross(abs(axis.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0), axis));
+    float z = mix(SUN_COS, 1.0, randomFloat()), a = 2.0 * PI * randomFloat();
+    float r = sqrt(max(0.0, 1.0 - z * z));
+    vec3 wi = normalize(axis * z + tangent * (r * cos(a)) + cross(axis, tangent) * (r * sin(a)));
+    float cosine = max(0.0, dot(n, wi));
+    if (cosine <= 0.0 || !unoccluded(p, n, wi, FAR)) return vec3(0.0);
+    return albedo * (cosine / PI) * sunEmission() * (2.0 * PI * (1.0 - SUN_COS));
+  }
+  return vec3(0.0);
+}
+
+vec3 pathSample(vec2 uv) {
+  float cameraZ = uBump + 1.0;
+  if (uLight == 1) for (int i = 0; i < 3; i++) if (uLamp[i].w >= 0.5) cameraZ = max(cameraZ, uLamp[i].z + 1.0);
+  vec3 origin = vec3(uv * uTexSize, cameraZ), direction = vec3(0.0, 0.0, -1.0);
+  vec3 radiance = vec3(0.0), throughput = vec3(1.0), sigmaA = vec3(0.0);
+  bool inside = false, specularBounce = true;
+  // Up to 4/8 scattering events, followed by an emission/escape evaluation.
+  for (int bounce = 0; bounce <= 8; bounce++) {
+    RayHit hit; bool exhausted = false;
+    bool found;
+    if (bounce == 0) { hit = primaryHit(origin); found = true; }
+    else found = traceScene(origin, direction, FAR, hit, exhausted);
+    if (exhausted) break;
+    if (!found) { if (!inside) radiance += throughput * environment(direction, specularBounce); break; }
+    if (inside) throughput *= exp(-sigmaA * hit.t);
+    vec3 p = origin + direction * hit.t;
+    if (hit.kind == 2) {
+      // Lamp paths from a diffuse vertex are already covered by direct sampling.
+      if (specularBounce) radiance += throughput * hit.tint;
+      break;
+    }
+    radiance += throughput * surfaceEmission(hit, p);
+    if (bounce >= uBounces) break;
+    bool front = dot(direction, hit.normal) < 0.0;
+    vec3 n = front ? hit.normal : -hit.normal;
+    if (hit.kind == 0 && dielectricMaterial()) {
+      float ior = materialIor(), etaI = front ? 1.0 : ior, etaT = front ? ior : 1.0;
+      float eta = etaI / etaT, reflectance = fresnelDielectric(-dot(direction, n), etaI, etaT);
+      if (randomFloat() < reflectance) direction = reflect(direction, n);
+      else {
+        direction = refract(direction, n, eta);
+        // Fresnel branch probability cancels its BSDF coefficient. Radiance
+        // transmission still carries eta^2, which cancels over an entry/exit pair.
+        throughput *= eta * eta;
+        inside = front;
+        sigmaA = inside ? absorption(hit.tint) : vec3(0.0);
+      }
+      specularBounce = true;
+    } else if (hit.kind == 0 && uMat == 1) {
+      throughput *= mix(vec3(0.94, 0.95, 0.97), hit.tint, 0.6);
+      direction = reflect(direction, n);
+      specularBounce = true;
+    } else {
+      vec3 albedo = diffuseColor(hit);
+      radiance += throughput * directLight(p, n, albedo);
+      direction = cosineDirection(n);
+      throughput *= albedo; // Lambertian f*cos/pdf cancels to albedo.
+      specularBounce = false;
+    }
+    direction = normalize(direction);
+    origin = offsetRay(p, hit.normal, direction);
+    if (max(throughput.r, max(throughput.g, throughput.b)) < 1e-8) break;
+  }
+  return max(radiance, vec3(0.0));
+}
+void main() {
+  uvec2 pixel = uvec2(gl_FragCoord.xy);
+  randomState = (pixel.x * 1973u + pixel.y * 9277u + uSeed * 26699u) | 1u;
+  randomFloat(); randomFloat();
+  vec2 jitter = vec2(randomFloat(), randomFloat()) - 0.5;
+  vec2 uv = clamp(vUv + jitter / max(uResolution, vec2(1.0)), vec2(0.0), vec2(1.0));
+  vec3 sampleValue = pathSample(uv);
+  // Linear HDR mean. The display pass alone performs tone mapping and encoding.
+  if (uSamples > 0) {
+    vec3 previous = texelFetch(uPrevious, ivec2(gl_FragCoord.xy), 0).rgb;
+    sampleValue = previous + (sampleValue - previous) / float(uSamples + 1);
+  }
+  outColor = vec4(sampleValue, 1.0);
+}
+`;
+
+// Optional path tracer. Installed in the app closure before startup, like garden-update.js.
+var pathTrace = {
+  mode: 'realtime', quality: 'preview', available: false, reason: '', resources: null,
+  history: createPathTraceHistory(), frozen: null, statusAt: 0
+};
+
+var PATH_DISPLAY = `#version 300 es
+precision highp float;
+precision highp sampler2D;
+uniform sampler2D uImage;
+uniform vec4 uLamp[3];
+uniform vec3 uLampCol[3];
+uniform vec2 uMarkerScale;
+in vec2 vUv;
+out vec4 outColor;
+void main() {
+  // RGBA32F is intentionally NEAREST; manual interpolation needs no float-linear extension.
+  ivec2 size = textureSize(uImage, 0);
+  vec2 p = vec2(vUv.x, 1.0 - vUv.y) * vec2(size) - 0.5;
+  ivec2 at = ivec2(floor(p)); vec2 f = fract(p);
+  vec3 a = texelFetch(uImage, clamp(at, ivec2(0), size - 1), 0).rgb;
+  vec3 b = texelFetch(uImage, clamp(at + ivec2(1, 0), ivec2(0), size - 1), 0).rgb;
+  vec3 c = texelFetch(uImage, clamp(at + ivec2(0, 1), ivec2(0), size - 1), 0).rgb;
+  vec3 d = texelFetch(uImage, clamp(at + ivec2(1), ivec2(0), size - 1), 0).rgb;
+  vec3 x = max(vec3(0.0), mix(mix(a, b, f.x), mix(c, d, f.x), f.y));
+  x = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+  x = pow(x, vec3(1.0 / 2.2));
+  // These rings are the existing lamp drag handles, drawn after radiance is displayed.
+  for (int i = 0; i < 3; i++) {
+    if (uLamp[i].w < 0.5) continue;
+    float r = length((vUv - uLamp[i].xy) * uMarkerScale);
+    float ring = smoothstep(0.76, 0.9, r) - smoothstep(1.0, 1.14, r);
+    float core = 1.0 - smoothstep(0.28, 0.42, r);
+    x = mix(x, mix(uLampCol[i], vec3(1.0), 0.6), max(ring * 0.9, core));
+  }
+  outColor = vec4(x, 1.0);
+}
+`;
+
+function pathRestoreGL() {
+  if (!gl || glLost) return;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.useProgram(glProgram); gl.bindVertexArray(glVao);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, glLut);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, heightTex);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE0);
+}
+
+function pathDeleteTarget(target) {
+  if (!target || !gl) return;
+  gl.deleteTexture(target.texture); gl.deleteFramebuffer(target.framebuffer);
+}
+
+function pathReleaseTargets() {
+  var r = pathTrace.resources;
+  if (!r) return;
+  pathDeleteTarget(r.surface);
+  r.targets.forEach(pathDeleteTarget);
+  r.surface = null; r.targets = []; r.width = r.height = 0;
+  pathTrace.history.reset();
+}
+
+function pathDispose() {
+  var r = pathTrace.resources;
+  if (!r || !gl) return;
+  pathReleaseTargets();
+  if (r.trace) gl.deleteProgram(r.trace.program);
+  if (r.display) gl.deleteProgram(r.display.program);
+  if (r.vao) gl.deleteVertexArray(r.vao);
+  if (r.buffer) gl.deleteBuffer(r.buffer);
+  pathTrace.resources = null;
+}
+
+function pathProgram(fragment, names) {
+  var program = gl.createProgram(), shaders = [];
+  try {
+    [VERT, fragment].forEach(function (source, i) {
+      var shader = gl.createShader(i ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER);
+      shaders.push(shader); gl.shaderSource(shader, source); gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader) || 'Path shader compilation failed');
+      gl.attachShader(program, shader);
+    });
+    gl.bindAttribLocation(program, 0, 'aPos'); gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) || 'Path shader linking failed');
+    var uniforms = {};
+    names.forEach(function (name) { uniforms[name] = gl.getUniformLocation(program, name); });
+    return { program: program, uniforms: uniforms };
+  } catch (error) {
+    gl.deleteProgram(program); throw error;
+  } finally {
+    shaders.forEach(function (shader) { gl.deleteShader(shader); });
+  }
+}
+
+function pathCreateResources() {
+  if (pathTrace.resources) return pathTrace.resources;
+  var r = { targets: [], surface: null, width: 0, height: 0, read: 0 };
+  pathTrace.resources = r; // Own every allocation immediately, including partial failure.
+  r.trace = pathProgram(PATH_FRAG, ['uField', 'uChem', 'uSurface', 'uPrevious', 'uTexSize', 'uResolution',
+    'uBump', 'uGlow', 'uLightTheme', 'uBg', 'uMat', 'uLight', 'uBounces', 'uSamples',
+    'uSeed', 'uTilt', 'uLamp', 'uLampCol', 'uSun', 'uSunCol']);
+  r.display = pathProgram(PATH_DISPLAY, ['uImage', 'uLamp', 'uLampCol', 'uMarkerScale']);
+  r.vao = gl.createVertexArray(); gl.bindVertexArray(r.vao);
+  r.buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, r.buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  return r;
+}
+
+function pathTarget(width, height, format) {
+  var target = { texture: gl.createTexture(), framebuffer: gl.createFramebuffer() };
+  try {
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, target.texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, gl.FLOAT, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE || gl.getError() !== gl.NO_ERROR) {
+      throw new Error('Floating-point path tracing target is unavailable');
+    }
+    return target;
+  } catch (error) { pathDeleteTarget(target); throw error; }
+}
+
+function pathEnsureTargets(r, size) {
+  if (r.width === size.width && r.height === size.height && r.gridW === sim.w && r.gridH === sim.h) return false;
+  pathReleaseTargets();
+  r.surface = pathTarget(sim.w * 2, sim.h * 2, gl.RGBA16F);
+  r.targets.push(pathTarget(size.width, size.height, gl.RGBA32F));
+  r.targets.push(pathTarget(size.width, size.height, gl.RGBA32F));
+  r.width = size.width; r.height = size.height; r.gridW = sim.w; r.gridH = sim.h; r.read = 0;
+  return true;
+}
+
+function pathControls(force) {
+  var host = $('rendering');
+  if (!host) return;
+  var selected = pathTrace.mode === 'path';
+  host.querySelectorAll('[data-renderer]').forEach(function (button) {
+    button.setAttribute('aria-pressed', String(button.dataset.renderer === pathTrace.mode));
+    if (button.dataset.renderer === 'path') button.disabled = !pathTrace.available;
+  });
+  $('pathTraceOptions').hidden = !selected;
+  host.querySelectorAll('[data-path-quality]').forEach(function (button) {
+    button.setAttribute('aria-pressed', String(button.dataset.pathQuality === pathTrace.quality));
+  });
+  var now = performance.now();
+  if (!force && now - pathTrace.statusAt < 500) return;
+  pathTrace.statusAt = now;
+  var text;
+  if (!pathTrace.available) text = 'Path tracing is unavailable on this device. Real-time rendering is active.';
+  else if (!selected) text = 'Responsive rendering for play. Path traced adds reflections, refraction and indirect light.';
+  else if (!state.paused || music.on) text = 'Live preview · Pause & refine for a clearer still image.';
+  else text = pathTrace.history.samples.toLocaleString() + ' samples · ' + (pathTrace.history.samples >= 4096 ? 'Refinement complete.' : 'Refining the still image…');
+  $('pathTraceStatus').textContent = text;
+}
+
+function initializePathTracing() {
+  // Context-restored handles belong to the old context and must never be reused.
+  pathTrace.resources = null; pathTrace.history.reset(); pathTrace.frozen = null;
+  pathTrace.available = !!(gl && gl.getExtension('EXT_color_buffer_float'));
+  pathTrace.reason = pathTrace.available ? '' : 'Floating-point rendering is unavailable';
+  if (!pathTrace.available) pathTrace.mode = 'realtime';
+  pathControls(true);
+}
+
+function setPathTraceMode(mode) {
+  pathTrace.mode = mode === 'path' && pathTrace.available ? 'path' : 'realtime';
+  pathTrace.history.reset(); pathTrace.frozen = null;
+  if (pathTrace.mode === 'realtime') { pathReleaseTargets(); pathRestoreGL(); }
+  pathControls(true);
+}
+
+function pathScene(dark) {
+  var frozen = state.paused && !music.on;
+  if (!frozen) pathTrace.frozen = null;
+  if (frozen && !pathTrace.frozen) pathTrace.frozen = {
+    time: performance.now() / 1000, bump: 5.5 + 3 * music.beat,
+    hue: music.hueAng, glow: music.on ? music.loud : 0.3
+  };
+  var snapshot = pathTrace.frozen || {
+    time: performance.now() / 1000, bump: 5.5 + 3 * music.beat,
+    hue: music.hueAng, glow: music.on ? music.loud : 0.3
+  };
+  var bd = backdropFor(dark), bg = hex(bd.bg).map(function (v) { return Math.fround(v / 255); });
+  var n = lampsOn(), lamps = [], colors = [], sun = [0, 0, 1], sunColor = [1, 1, 1];
+  for (var i = 0; i < 3; i++) {
+    lamps.push(Math.fround(state.lamps[i].x), Math.fround(state.lamps[i].y), Math.fround(lampHeightCells()), i < n ? 1 : 0);
+    colors.push.apply(colors, n === 1 ? LAMP_WARM : STAGE[i]);
+  }
+  if (state.light === 'sun') {
+    var az = snapshot.time * Math.PI / 24;
+    var el = (24 + 13 * Math.sin(snapshot.time * Math.PI / 15.5)) * Math.PI / 180;
+    sun = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)].map(Math.fround);
+    var warm = smooth(11, 37, el * 180 / Math.PI);
+    sunColor = [1, 0.62 + 0.33 * warm, 0.36 + 0.5 * warm].map(Math.fround);
+  }
+  return {
+    bg: bg, lightTheme: bd.light ? 1 : 0, palette: state.palette,
+    chem: sim.kind === 'heart' ? 1 : sim.kind === 'quantum' ? 2 : sim.kind === 'mould' ? 3 : 0,
+    material: MATERIALS[state.material].id, light: n ? 1 : state.light === 'sun' ? 2 : 0,
+    bump: Math.fround(snapshot.bump), hue: Math.fround(snapshot.hue), glow: Math.fround(snapshot.glow),
+    // Quantize the values sent to the shader, so asymptotic tilt easing can settle.
+    tilt: [state.tilt.x, state.tilt.y].map(function (v) { return Math.fround(Math.round(v * 10000) / 10000); }),
+    lamps: lamps, lampColors: colors, sun: sun, sunColor: sunColor
+  };
+}
+
+function pathUploadField() {
+  var changed = false, n = sim.w * sim.h, fb = fieldBuf;
+  var fields = [sim.R, sim.G, sim.Bl, sim.A];
+  for (var i = 0; i < n; i++) for (var c = 0; c < 4; c++) {
+    var j = i * 4 + c, value = Math.fround(fields[c][i]);
+    if (fb[j] !== value) changed = true;
+    fb[j] = value;
+  }
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, sim.w, sim.h, gl.RGBA, gl.FLOAT, fb);
+  return changed;
+}
+
+function pathDrawSurface(r, scene) {
+  gl.useProgram(glProgram); gl.bindVertexArray(glVao);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, glTex);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, glLut);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, r.surface.framebuffer);
+  gl.viewport(0, 0, sim.w * 2, sim.h * 2);
+  gl.uniform2f(glU.uTexSize, sim.w, sim.h);
+  gl.uniform1f(glU.uLineage, PALETTES[state.palette].lineage ? 1 : 0);
+  gl.uniform1f(glU.uHue, scene.hue); gl.uniform1i(glU.uMat, scene.material);
+  gl.uniform1f(glU.uHeart, scene.chem);
+  gl.uniform1i(glU.uPass, 2); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.uniform1i(glU.uPass, 0);
+}
+
+function pathDrawSample(r, scene, moving) {
+  var u = r.trace.uniforms, write = 1 - r.read;
+  gl.useProgram(r.trace.program); gl.bindVertexArray(r.vao);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, r.surface.texture);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, r.targets[r.read].texture);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, r.targets[write].framebuffer);
+  gl.viewport(0, 0, r.width, r.height);
+  gl.uniform1i(u.uField, 0); gl.uniform1i(u.uChem, scene.chem);
+  gl.uniform1i(u.uSurface, 2); gl.uniform1i(u.uPrevious, 3);
+  gl.uniform2f(u.uTexSize, sim.w, sim.h); gl.uniform2f(u.uResolution, r.width, r.height);
+  gl.uniform1f(u.uBump, scene.bump); gl.uniform1f(u.uGlow, scene.glow);
+  gl.uniform1f(u.uLightTheme, scene.lightTheme); gl.uniform3fv(u.uBg, scene.bg);
+  gl.uniform1i(u.uMat, scene.material); gl.uniform1i(u.uLight, scene.light);
+  gl.uniform1i(u.uBounces, !moving && pathTrace.quality === 'fine' ? 8 : 4);
+  gl.uniform1i(u.uSamples, pathTrace.history.samples); gl.uniform1ui(u.uSeed, pathTrace.history.seed);
+  gl.uniform2fv(u.uTilt, scene.tilt); gl.uniform4fv(u.uLamp, scene.lamps); gl.uniform3fv(u.uLampCol, scene.lampColors);
+  gl.uniform3fv(u.uSun, scene.sun); gl.uniform3fv(u.uSunCol, scene.sunColor);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  r.read = write; pathTrace.history.commit();
+}
+
+function pathPresent(r, scene) {
+  var u = r.display.uniforms;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.useProgram(r.display.program); gl.bindVertexArray(r.vao);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, r.targets[r.read].texture);
+  gl.uniform1i(u.uImage, 3); gl.uniform4fv(u.uLamp, scene.lamps); gl.uniform3fv(u.uLampCol, scene.lampColors);
+  var rect = canvas.getBoundingClientRect();
+  gl.uniform2f(u.uMarkerScale, rect.width / (LAMP_GRAB * 0.5), rect.height / (LAMP_GRAB * 0.5));
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+function renderPathTraced(dark) {
+  if (pathTrace.mode !== 'path' || !pathTrace.available || !gl || glLost) return false;
+  try {
+    var moving = !state.paused || music.on;
+    var size = pathTraceSize(canvas.width, canvas.height, pathTrace.quality, moving);
+    var r = pathCreateResources(), resized = pathEnsureTargets(r, size);
+    var changed = pathUploadField(), scene = pathScene(dark);
+    var key = JSON.stringify([scene, r.width, r.height, sim.w, sim.h, pathTrace.quality]);
+    if (pathTrace.history.begin(key, changed || resized, moving)) pathDrawSurface(r, scene);
+    if (pathTrace.history.samples < 4096) pathDrawSample(r, scene, moving);
+    pathPresent(r, scene); pathControls(false);
+    return true;
+  } catch (error) {
+    pathTrace.reason = String(error.message || error);
+    console.warn('Path tracing disabled:', pathTrace.reason);
+    pathDispose(); pathTrace.available = false; pathTrace.mode = 'realtime';
+    pathControls(true);
+    return false;
+  } finally { pathRestoreGL(); }
+}
+
+(function installPathTracing() {
+  try { if (localStorage.getItem('garden.pathQuality') === 'fine') pathTrace.quality = 'fine'; } catch (e) {}
+  var host = document.createElement('div'); host.className = 'group'; host.id = 'rendering';
+  host.innerHTML = '<h3 class="eyebrow">Rendering</h3><div class="seg" id="renderModes" role="group" aria-label="Rendering"><button class="chip" type="button" data-renderer="realtime" aria-pressed="true">Real-time</button><button class="chip" type="button" data-renderer="path" aria-pressed="false" aria-describedby="pathTraceStatus" disabled>Path traced</button></div><div id="pathTraceOptions" hidden><div class="chips" role="group" aria-label="Path tracing quality"><button class="chip" type="button" data-path-quality="preview" aria-pressed="true">Preview</button><button class="chip" type="button" data-path-quality="fine" aria-pressed="false">Fine</button></div><div class="actions"><button class="act" id="pathTraceRefine" type="button" title="Pause motion and sound to refine a still image">Pause &amp; refine</button></div><p class="note">Preview settles faster. Fine traces more bounces at a higher resolution. Moving scenes can look grainy.</p></div><p class="note" id="pathTraceStatus" aria-live="off"></p>';
+  var pane = document.querySelector('[data-pane="look"]'); pane.insertBefore(host, pane.firstChild);
+  host.querySelectorAll('[data-renderer]').forEach(function (button) {
+    button.addEventListener('click', function () { setPathTraceMode(this.dataset.renderer); });
+  });
+  host.querySelectorAll('[data-path-quality]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      pathTrace.quality = this.dataset.pathQuality; pathTrace.history.reset();
+      try { localStorage.setItem('garden.pathQuality', pathTrace.quality); } catch (e) {}
+      pathControls(true);
+    });
+  });
+  $('pathTraceRefine').addEventListener('click', function () {
+    if (!state.paused) $('pause').click();
+    if (music.on) stopMusic();
+    pathTrace.frozen = null; pathTrace.history.reset(); pathControls(true);
+  });
 })();
 
   // END GARDEN UPDATE
