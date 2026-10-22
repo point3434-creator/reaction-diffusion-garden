@@ -473,12 +473,50 @@ void main() {
         assert max(abs(a - b) for a, b in zip(fresh, one_bounce)) > 1e-4, 'Multiple bounces had no observable effect'
         self.pass_check('Stochastic seed and multiple bounces independently change the sampled radiance')
 
+    def glass_transport(self):
+        # A camera path through a closed glass slab reaches the floor, then must
+        # cross the base and top again before it can collect environment light.
+        # Four events cut off this common path; adding samples cannot repair it.
+        # Use a wide, clear slab and central pixels to exclude side-wall escapes.
+        self.program(self.source)
+        width = height = 16
+        self.surface(lambda x, y: 2, span=(256, 256), cells=(2, 2))
+        self.gl.texture(0, 2, 2, [0.5, 1, 1, 1] * 4, floating=True)
+        self.gl.texture(1, width, height, [0] * (width * height * 4), target_float=True)
+        self.gl.texture(3, 1, 1, [0, 0, 0, 0], floating=True)
+        fbo = self.output(width, height)
+        for uniform, value in {
+            'uField': 3, 'uChem': 0, 'uResolution': [width, height], 'uTilt': [0, 0],
+            'uGlow': 0, 'uLightTheme': 1, 'uBg': [0.9, 0.9, 0.9], 'uMat': 0,
+            'uLight': 0, 'uSamples': 0,
+        }.items():
+            self.gl.uniform(uniform, value)
+        luminance = {4: [], 6: []}
+        for seed in range(1, 17):
+            self.gl.uniform('uSeed', seed)
+            for depth in (4, 6):
+                self.gl.uniform('uBounces', depth)
+                self.gl.draw(fbo, width, height)
+                pixels = self.gl.read(width, height)
+                for y in range(4, 12):
+                    for x in range(4, 12):
+                        i = (y * width + x) * 4
+                        value = sum(a * b for a, b in zip(pixels[i:i + 3], (0.2126, 0.7152, 0.0722)))
+                        assert math.isfinite(value) and value >= 0, 'Invalid glass transport radiance'
+                        luminance[depth].append(value)
+        four, six = (sum(luminance[depth]) / len(luminance[depth]) for depth in (4, 6))
+        recovered = sum(b > a + 1e-3 for a, b in zip(luminance[4], luminance[6])) / len(luminance[4])
+        assert six > max(0.05, four * 3), f'Glass floor transport remains truncated: depth4={four:.6f}, depth6={six:.6f}'
+        assert recovered > 0.5, f'Only {recovered:.1%} of central glass samples recovered floor illumination'
+        self.pass_check(f'Six-event budget retains glass/floor/glass transport (1024 paired samples; luminance {four:.4f} -> {six:.4f})')
+
     def run(self):
         try:
             self.geometry()
             self.fresnel()
             self.chemical_floor()
             self.rendering()
+            self.glass_transport()
             print(f'{self.passed} native path-tracing checks passed (GLES; browser suite remains required).', flush=True)
         finally:
             self.gl.close()

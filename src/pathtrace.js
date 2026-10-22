@@ -253,7 +253,9 @@ function pathDrawSample(r, scene, moving) {
   gl.uniform1f(u.uBump, scene.bump); gl.uniform1f(u.uGlow, scene.glow);
   gl.uniform1f(u.uLightTheme, scene.lightTheme); gl.uniform3fv(u.uBg, scene.bg);
   gl.uniform1i(u.uMat, scene.material); gl.uniform1i(u.uLight, scene.light);
-  gl.uniform1i(u.uBounces, !moving && pathTrace.quality === 'fine' ? 8 : 4);
+  // Glass → floor → glass needs five scattering events before the path can
+  // reach the sky. Keep a sixth event even in preview so glass stays transparent.
+  gl.uniform1i(u.uBounces, !moving && pathTrace.quality === 'fine' ? 8 : 6);
   gl.uniform1i(u.uSamples, pathTrace.history.samples); gl.uniform1ui(u.uSeed, pathTrace.history.seed);
   gl.uniform2fv(u.uTilt, scene.tilt); gl.uniform4fv(u.uLamp, scene.lamps); gl.uniform3fv(u.uLampCol, scene.lampColors);
   gl.uniform3fv(u.uSun, scene.sun); gl.uniform3fv(u.uSunCol, scene.sunColor);

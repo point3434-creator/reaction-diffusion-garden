@@ -50,7 +50,7 @@ In **Look → Rendering**, choose **Path traced** for sampled reflections,
 refraction, colored glass absorption and indirect light. **Pause & refine** pauses
 the dish and sound so the image becomes clearer as samples accumulate. You can
 still paint, change materials or move lamps while paused; each change starts a
-fresh image. **Preview** traces four bounces at a lower resolution; **Fine** traces
+fresh image. **Preview** traces six bounces at a lower resolution; **Fine** traces
 eight with a larger image. Save picture captures the displayed result as usual.
 
 Moving or sound-reactive scenes use a smaller, grainier live preview. A still can

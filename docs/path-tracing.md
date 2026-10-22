@@ -29,9 +29,9 @@ existing physics, rather than invented three-dimensional obstacles.
 ## Interaction and budgets
 
 - Look → Rendering → Path traced selects the new mode for this visit.
-- Preview uses four surface events and at most 262,144 internal pixels.
+- Preview uses six surface events and at most 262,144 internal pixels.
 - Fine uses eight surface events and at most 786,432 internal pixels.
-- Moving or audio-reactive scenes use four events and at most 98,304 pixels.
+- Moving or audio-reactive scenes use six events and at most 98,304 pixels.
 - Pause & refine pauses the simulation and soundtrack, allowing a still to settle.
 - Still scenes accumulate up to 4,096 samples. Painting, field changes, material,
   palette, background, effective lighting or render size changes reset that history.
@@ -42,6 +42,8 @@ existing physics, rather than invented three-dimensional obstacles.
 The trace is bounded by the selected event budget and a finite cell traversal
 budget. Exhausted traversal is terminated conservatively, not reported as an open
 sky miss. This and the finite event count are deliberate quality approximations.
+The preview budget retains the five surface events needed for light to pass
+through glass, bounce off the floor, and return through glass to the environment.
 The output canvas keeps its normal size, with the internal image scaled to fit.
 GPU performance depends on device, browser, resolution and geometry; a software
 renderer test is not a hardware performance benchmark.

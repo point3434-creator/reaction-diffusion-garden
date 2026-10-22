@@ -339,7 +339,7 @@ vec3 pathSample(vec2 uv) {
   vec3 origin = vec3(uv * uTexSize, cameraZ), direction = vec3(0.0, 0.0, -1.0);
   vec3 radiance = vec3(0.0), throughput = vec3(1.0), sigmaA = vec3(0.0);
   bool inside = false, specularBounce = true;
-  // Up to 4/8 scattering events, followed by an emission/escape evaluation.
+  // Up to 6/8 scattering events, followed by an emission/escape evaluation.
   for (int bounce = 0; bounce <= 8; bounce++) {
     RayHit hit; bool exhausted = false;
     bool found;

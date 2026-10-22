@@ -91,6 +91,7 @@ async function draw(page, count = 1) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
     return { mode: p.mode, available: p.available, reason: p.reason, samples: p.history.samples,
+      quality: p.quality, bounces: r && gl.getUniform(r.trace.program, r.trace.uniforms.uBounces),
       seed: p.history.seed, width: r && r.width, height: r && r.height, finite, max, min,
       error: gl && gl.getError(), restored, displayError };
   }, count);
@@ -104,6 +105,7 @@ test('path tracing is opt-in, renders real HDR pixels, refines, and switches bac
   const first = await draw(page);
   assert.equal(first.mode, 'path', first.reason);
   assert.equal(first.samples, 1);
+  assert.equal(first.bounces, 6, 'preview keeps the complete glass-floor-glass light path');
   assert.ok(first.finite && first.max > first.min && first.max > 0, 'trace produces nonflat finite radiance');
   assert.equal(first.error, 0);
   assert.deepEqual(first.restored, { framebuffer: true, program: true, vao: true, activeTexture: true });
@@ -112,7 +114,7 @@ test('path tracing is opt-in, renders real HDR pixels, refines, and switches bac
   // Keep the real presented pixels as a CI artifact for visual inspection.
   // Read in the same task as the draw; the default framebuffer is not preserved.
   const preview = await page.evaluate(() => {
-    pathAudit.render();
+    for (let i = 0; i < 28; i++) pathAudit.render();
     const gl = pathAudit.getGL(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
     const pixels = new Uint8Array(w * h * 4);
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
@@ -154,6 +156,7 @@ test('painting, palette, material, lights, quality and resize invalidate old sam
     const next = await draw(page);
     assert.equal(next.mode, 'path', next.reason);
     assert.equal(next.samples, 1, change.toString());
+    assert.equal(next.bounces, next.quality === 'fine' ? 8 : 6);
     assert.equal(next.error, 0);
   }
   assert.deepEqual(errors, []);
@@ -165,6 +168,7 @@ test('motion resets history but advances noise, and paused sun can converge', as
   await page.evaluate(() => { pathAudit.state.paused = false; });
   const a = await draw(page), b = await draw(page);
   assert.equal(a.samples, 1); assert.equal(b.samples, 1);
+  assert.equal(b.bounces, 6, 'live preview retains glass transmission');
   assert.notEqual(a.seed, b.seed);
   assert.ok(b.width * b.height <= 98304);
   await page.evaluate(() => {
