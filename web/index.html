@@ -4738,8 +4738,9 @@ bool traceScene(vec3 origin, vec3 direction, float tMax, out RayHit hit, out boo
 }
 RayHit primaryHit(vec3 origin) {
   float h; vec3 n, tint; meshAt(origin.xy, h, n, tint);
-  RayHit hit = h > 0.0 ? RayHit(origin.z - h, n, tint, 0) :
-    RayHit(origin.z - FLOOR_Z, vec3(0.0, 0.0, 1.0), floorTint(origin.xy), 1);
+  RayHit hit;
+  if (h > 0.0) hit = RayHit(origin.z - h, n, tint, 0);
+  else hit = RayHit(origin.z - FLOOR_Z, vec3(0.0, 0.0, 1.0), floorTint(origin.xy), 1);
   traceLamps(origin, vec3(0.0, 0.0, -1.0), hit);
   return hit;
 }

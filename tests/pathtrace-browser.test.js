@@ -109,6 +109,22 @@ test('path tracing is opt-in, renders real HDR pixels, refines, and switches bac
   assert.deepEqual(first.restored, { framebuffer: true, program: true, vao: true, activeTexture: true });
   assert.ok(first.displayError <= 2, 'present the traced image with correct orientation and display encoding');
   assert.equal((await draw(page, 3)).samples, 4);
+  // Keep the real presented pixels as a CI artifact for visual inspection.
+  // Read in the same task as the draw; the default framebuffer is not preserved.
+  const preview = await page.evaluate(() => {
+    pathAudit.render();
+    const gl = pathAudit.getGL(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+    const pixels = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d'), image = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) image.data.set(pixels.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+    ctx.putImageData(image, 0, 0);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const output = path.join(__dirname, '../test-results/path-tracing');
+  fs.mkdirSync(output, { recursive: true });
+  fs.writeFileSync(path.join(output, 'presented-preview.png'), Buffer.from(preview, 'base64'));
   await page.evaluate(() => document.querySelector('[data-renderer="realtime"]').click());
   const result = await page.evaluate(() => {
     pathAudit.render();
