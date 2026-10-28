@@ -51,6 +51,12 @@ def splice(html):
     current = '\n'.join(line for line in current.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))
     update = (SRC / 'garden-update.js').read_text(encoding='utf-8')
     update += '\n' + (SRC / 'panel-art.js').read_text(encoding='utf-8')
+    policy = (SRC / 'pathtrace-state.js').read_text(encoding='utf-8')
+    update += '\n' + '\n'.join(line for line in policy.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))
+    path_frag = (SRC / 'pathtrace.glsl').read_text(encoding='utf-8').rstrip('\n')
+    assert '`' not in path_frag and '${' not in path_frag, 'the path shader must be a literal template'
+    update += '\n  var PATH_FRAG = `' + path_frag + '\n`;\n'
+    update += '\n' + (SRC / 'pathtrace.js').read_text(encoding='utf-8')
     block = '  // BEGIN GARDEN UPDATE\n' + current + '\n' + update + '\n  // END GARDEN UPDATE\n\n'
     marker = '  // ---- go ----'
     if html.count(marker) != 1:
