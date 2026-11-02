@@ -50,6 +50,27 @@ tools/              calibration scripts for the models, an offline renderer for 
 
 The simulations run on the CPU in plain JavaScript on a grid of a few hundred cells a side; the renderer is WebGL 2, with a flat 2D fallback. There are no dependencies at runtime.
 
+## Path tracing
+
+In **Look → Rendering**, choose **Path traced** for sampled reflections,
+refraction, colored glass absorption and indirect light. **Pause & refine** pauses
+the dish and sound so the image becomes clearer as samples accumulate. You can
+still paint, change materials or move lamps while paused; each change starts a
+fresh image. **Preview** traces six bounces at a lower resolution; **Fine** traces
+eight with a larger image. Save picture captures the displayed result as usual.
+
+Moving or sound-reactive scenes use a smaller, grainier live preview. A still can
+refine to 4,096 samples; its sun stays fixed while paused. Real-time remains the
+default on every visit, and you can switch back at any time. Unsupported devices
+keep the existing WebGL or flat renderer. Path tracing needs WebGL 2 with floating
+point render targets and adds GPU work; it does not move the simulation to the GPU.
+
+This is a finite-heightfield path tracer with simplified material models. Prism
+uses refracting glass and graph paper, but does not split wavelengths; Ice and
+Iridescent use clear dielectric approximations, and Wax uses a diffuse surface.
+Fine refractive caustics can take many samples to settle. The implementation and
+its limits are described in [docs/path-tracing.md](docs/path-tracing.md).
+
 ## Running it
 
 Open `web/index.html`. Everything works from a local file except the microphone and screen sharing, which browsers allow only on `https` pages and on files opened directly in Chrome.
@@ -76,6 +97,12 @@ The result is `android/build/garden.apk`, including about 28 MB of soundtrack re
 ## Checking the physics
 
 Run `npm run check` to verify the generated page and `npm test` for Current chemistry, browser recovery/input, soundtrack playback, and responsive UI regressions. Install the test browser with `npx playwright install chromium`. `python3 tests/android-assets.test.py` checks Android asset staging without requiring a full Android SDK; building and testing the APK on a device remains a separate check.
+
+`npm run test:pathtrace` exercises the optional renderer, accumulation, fallback
+and context recovery in a real WebGL browser. On Linux with Mesa/EGL available,
+`python3 tests/pathtrace-egl.test.py` independently checks actual shader geometry,
+Fresnel reflection, finite HDR output and accumulation. Native EGL checks supplement
+the browser tests; they do not measure hardware frame rate.
 
 ```
 npm install

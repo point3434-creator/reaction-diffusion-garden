@@ -8,6 +8,8 @@
     "check": "python3 tools/splice.py --check",
     "test": "node tests/current.test.js && node --test tests/browser-regression.test.js && node tests/audio-regression.test.js && node --test tests/beat-transport.test.js && node --test tests/beat-mix.test.js && node --test tests/bundled-audio.test.js && node --test tests/jukebox.test.js && node --test tests/song-library.test.js && node --test tests/song-reel.test.js && node --test tests/material-shaders.test.js && node --test tests/neon-canopy.test.js && node tests/glass-ui.test.js",
     "test:jukebox": "node --test tests/jukebox.test.js",
+    "test": "node tests/current.test.js && node --test tests/pathtrace-state.test.js tests/browser-regression.test.js tests/pathtrace-browser.test.js && node tests/audio-regression.test.js && node --test tests/bundled-audio.test.js && node tests/glass-ui.test.js",
+    "test:pathtrace": "node --test tests/pathtrace-state.test.js tests/pathtrace-browser.test.js",
     "calibrate:heart": "node tools/calibrate-heart.js",
     "calibrate:quantum": "node tools/calibrate-quantum.js",
     "calibrate:mould": "node tools/calibrate-mould.js",

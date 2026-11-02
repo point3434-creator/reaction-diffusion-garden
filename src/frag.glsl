@@ -22,7 +22,7 @@ uniform vec3 uLampCol[3];
 uniform float uLampR;      // a lamp's marker, in cells
 uniform vec3 uSun;         // toward the sun
 uniform vec3 uSunCol;
-uniform int uPass;         // 1 draws the domes' heights for the rays, into uHeight; 0 draws the dish
+uniform int uPass;         // 1 shadow profile; 2 actual path-tracing surface; 0 draws the dish
 uniform sampler2D uHeight; // those heights, smoothed, at twice the grid's resolution
 in vec2 vUv;
 out vec4 outColor;
@@ -214,6 +214,11 @@ void main() {
   // would be ragged a cell at a time
   // and, for see-through materials, the colour each dome gives the light crossing it
   if (uPass == 1) { vec4 c1 = fieldAt(vUv); float b1 = bsum(c1); outColor = vec4(blockerOf(b1), filterOf(c1, b1)); return; }
+  if (uPass == 2) {
+    vec4 c1 = fieldAt(vUv); float b1 = bsum(c1);
+    float h1 = uHeart > 0.5 && c1.a <= -0.5 ? 0.0 : heightOf(b1);
+    outColor = vec4(h1, filterOf(c1, b1)); return;
+  }
   vec2 px = 1.0 / uTexSize;
   vec4 c = fieldAt(vUv);
   float b = bsum(c);
