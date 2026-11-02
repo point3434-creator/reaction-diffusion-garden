@@ -37,7 +37,7 @@ def splice(html):
         ('quantum.js', '// The Schrödinger equation on the same grid', "// A slime mould (Jones's agent model"),
         ('mould.js', "// A slime mould (Jones's agent model", '// Stirring: a fluid flow'),
         ('stir.js', '// Stirring: a fluid flow', '// A hue (degrees) as pigment shares that sum to 1.'),
-        ('beats.js', '  // ---- beats: five original loops', '  // ---- tilt: the light stays put'),
+        ('beats.js', '  // ---- beats:', '  // ---- tilt: the light stays put'),
     ]
     for name, start, end in blocks:
         src = (SRC / name).read_text(encoding='utf-8')
@@ -49,7 +49,8 @@ def splice(html):
     html = re.sub(r"(function clearPatch\(strength\) \{\s*)if \(!sim \|\| sim.kind !== 'garden'\) return;", r"\1if (!sim || (sim.kind !== 'garden' && sim.kind !== 'current')) return;", html)
     current = (SRC / 'current.js').read_text(encoding='utf-8')
     current = '\n'.join(line for line in current.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))
-    update = (SRC / 'garden-update.js').read_text(encoding='utf-8')
+    update = (SRC / 'song-library.js').read_text(encoding='utf-8')
+    update += '\n' + (SRC / 'garden-update.js').read_text(encoding='utf-8')
     update += '\n' + (SRC / 'panel-art.js').read_text(encoding='utf-8')
     policy = (SRC / 'pathtrace-state.js').read_text(encoding='utf-8')
     update += '\n' + '\n'.join(line for line in policy.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))

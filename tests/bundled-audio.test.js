@@ -38,8 +38,9 @@ test('all five bundled recordings play through the existing soundtrack controls'
     await page.goto('http://127.0.0.1:' + server.address().port + '/', { waitUntil: 'domcontentloaded' });
     await page.locator('#pause').click();
     await page.locator('[data-tab="sound"]').click();
-    assert.equal(await page.locator('#gardenScoreLibrary button').count(), 5);
-    assert.equal(await page.locator('#beatChips button').count(), 5, 'keep the original synthesized beats');
+    assert.equal(await page.locator('#gardenScoreLibrary button').count(), tracks.length + 6);
+    assert.equal(await page.locator('#beatChips button').count(), 6, 'include all six synthesized beats');
+    assert.equal(await page.locator('#beats').isVisible(), false, 'the common library replaces the separate beats section');
     for (let i = 0; i < tracks.length; i++) {
       await page.locator('#gardenScoreLibrary button').nth(i).click();
       await page.locator('#gardenScorePlay').click();

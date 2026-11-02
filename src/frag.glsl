@@ -196,12 +196,17 @@ float gridAt(vec2 p) {
   vec2 f = abs(fract(p * 0.2) - 0.5) * 5.0;
   return 1.0 - smoothstep(0.1, 0.45, min(f.x, f.y));
 }
-// Heat to colour. A lineage burns its own hue, dark through hue to white-hot; a palette burns its ramp.
-vec3 flameCol(float x, vec3 hue) {
-  vec3 a = hue * smoothstep(0.0, 0.45, x) * (0.25 + 0.75 * smoothstep(0.1, 0.7, x));
-  a = mix(a, vec3(1.0, 0.98, 0.92), smoothstep(0.72, 1.0, x));
-  vec3 l = texture(uLut, vec2(mix(x, 1.0 - x, uLutFlip), 0.5)).rgb * smoothstep(0.0, 0.08, x);
-  return mix(l, a, uLineage);
+// Interpolate lattice slices so the heat rolls through the height of each dome.
+float lavaNoise(vec3 p) {
+  float z = floor(p.z), f = fract(p.z);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(vnoise(p.xy + vec2(37.0, 17.0) * z),
+             vnoise(p.xy + vec2(37.0, 17.0) * (z + 1.0)), f);
+}
+// A narrow, antialiased core and a restrained halo, measured in screen pixels.
+vec2 electricFilament(float path) {
+  float d = abs(path) / max(fwidth(path), 0.001);
+  return vec2(1.0 - smoothstep(0.3, 1.0, d), exp(-d * d * 0.16));
 }
 
 void main() {
@@ -390,33 +395,25 @@ void main() {
     col += vec3(1.0) * pow(max(dot(Nd, H), 0.0), 50.0) * mix(0.16, 0.08, lt);
     bg = paper;
   } else if (uMat == 7) {
-    // ---- fire: the body is embers, and every point looks down the screen for the blob burning below it ----
+    // ---- lava: rolling hot ridges and dark pockets on the existing domes ----
+    // Visual reference: Duke's Pyroclastic fireball, https://www.shadertoy.com/view/MtXSzS
+    // Our height field supplies the surface; no separate sphere or ray march is needed.
     vec2 gp = vUv * uTexSize;
     float t = uTime;
-    // tongues: tall narrow features scrolling upward, and a per-column flicker
-    float colN = vnoise(vec2(gp.x * 0.22 + t * 0.3, t * 1.4));
-    float tongue = vnoise(vec2(gp.x * 0.5, gp.y * 0.12 + t * 2.4));
-    float tongue2 = vnoise(vec2(gp.x * 1.1 + 4.0, gp.y * 0.3 + t * 3.6));
-    float flick = 0.5 * colN + 0.3 * tongue + 0.2 * tongue2;
-    float reach = 6.0 + 18.0 * flick * flick;
-    float heat = 0.0;
-    vec4 src = c;
-    for (int k = 0; k < 12; k++) {
-      float d = (float(k) + 0.5) * 1.6;
-      float wob = (vnoise(vec2(gp.x * 0.4 + float(k) * 0.7, gp.y * 0.25 - d * 0.2 + t * 1.6)) - 0.5) * (1.0 + 0.25 * d);
-      vec4 smp = texture(uField, vUv + vec2(wob, d) * px);
-      float hk = smoothstep(E0 * 0.7, BPK * 0.7, bsum(smp)) * clamp(1.0 - d / reach, 0.0, 1.0);
-      if (hk > heat) { heat = hk; src = smp; }
-    }
-    heat = clamp(heat * (0.45 + 0.65 * smoothstep(0.2, 0.8, tongue)) * (0.7 + 0.5 * tongue2), 0.0, 1.0);
-    float sm = max(src.r, max(src.g, src.b));
-    vec3 fhue = hueTurn(sm > 1e-5 ? src.rgb / sm : vec3(1.0), uHue);
-    vec3 flame = flameCol(pow(heat, 0.85), fhue);
-    float pulse = 0.75 + 0.25 * vnoise(gp * 0.35 + vec2(t * 0.6, t * 0.9));
-    float crust = smoothstep(0.3, 0.8, vnoise(gp * 0.7 + vec2(0.0, t * 0.2)));
-    vec3 body = flameCol(0.14 + 0.36 * q * pulse, tintP) * (0.4 + 0.6 * crust);
-    col = body + flame * 1.0 + vec3(1.0, 0.9, 0.7) * spec * 0.1;
-    bg = uBg + flame * 1.15 + flameCol(0.3, tintP) * halo * 0.5;
+    vec3 p = vec3(gp * 0.19, h * 2.4) + vec3(0.04, -0.24, 0.12) * t;
+    vec2 warp = vec2(lavaNoise(p * 0.65), lavaNoise(p * 0.65 + 13.7)) - 0.5;
+    p.xy += warp * 1.8 + N.xy * 0.35;
+    float turbulence = abs(2.0 * lavaNoise(p) - 1.0) * 0.65;
+    turbulence += abs(2.0 * lavaNoise(p * 2.03 + 7.1) - 1.0) * 0.25;
+    turbulence += abs(2.0 * lavaNoise(p * 4.09 + 21.2) - 1.0) * 0.10;
+    float heat = clamp(1.04 - turbulence * 1.55, 0.0, 1.0);
+    col = mix(vec3(0.075, 0.008, 0.006), vec3(0.52, 0.025, 0.002), smoothstep(0.12, 0.50, heat));
+    col = mix(col, vec3(1.15, 0.16, 0.008), smoothstep(0.46, 0.72, heat));
+    col = mix(col, vec3(1.35, 0.84, 0.14), smoothstep(0.70, 0.91, heat));
+    col = mix(col, vec3(1.45, 1.30, 0.95), smoothstep(0.89, 1.0, heat));
+    col *= 0.72 + 0.28 * h;
+    col = col / (vec3(1.0) + col * 0.25);
+    bg = uBg + vec3(0.34, 0.055, 0.004) * halo * 0.45;
   } else if (uMat == 8) {
     // ---- ice: tinted ice with frost veins, glints that twinkle, and a cold mist around it ----
     vec2 gp = vUv * uTexSize;
@@ -500,41 +497,27 @@ void main() {
     float g0 = gridAt(gp);
     bg = mix(uBg + g0 * 0.05, uBg * (1.0 - g0 * 0.12), lt) * (1.0 - shadow * mix(0.4, 0.2, lt));
   } else {
-    // ---- electricity: arcs that hug the edge, jitter, flicker and strobe; plasma within ----
+    // ---- electricity: blue and gold filaments travel across each curved surface ----
     vec2 gp = vUv * uTexSize;
     float t = uTime;
-    vec3 arcCol = mix(vec3(0.55, 0.72, 1.0), tintP, 0.55);
-    vec3 hotCol = mix(arcCol, vec3(1.0), 0.8);
-    float strobe = 0.55 + 0.45 * hash12(vec2(floor(t * 20.0), 1.0));
-    // the arc is an iso-line of the field, read through a jitter that is large and slow plus small and quick
-    vec2 jag = (vec2(vnoise(gp * 0.12 + vec2(0.0, t * 6.0)), vnoise(gp * 0.12 + vec2(t * 5.0, 50.0))) - 0.5) * 6.0
-             + (vec2(vnoise(gp * 0.45 + vec2(0.0, t * 13.0) + 9.0), vnoise(gp * 0.45 + vec2(t * 11.0, 70.0))) - 0.5) * 1.6;
-    float bj = bsum(texture(uField, vUv + jag * px));
-    float lv1 = E0 + 0.03 + 0.05 * vnoise(vec2(t * 3.0, 7.0));
-    float lv2 = E0 * (0.25 + 0.4 * vnoise(vec2(t * 2.3, 3.0)));
-    float d1 = (bj - lv1) / 0.03;
-    float d2 = (bj - lv2) / 0.011;
-    float on1 = smoothstep(0.42, 0.56, vnoise(gp * 0.08 + vec2(t * 4.0, 0.0)));
-    float on2 = smoothstep(0.5, 0.64, vnoise(gp * 0.07 + vec2(0.0, t * 3.0) + 20.0));
-    float arcIn = (exp(-d1 * d1) + 0.35 * exp(-d1 * d1 * 0.12)) * on1 * strobe;
-    float arcOut = (exp(-d2 * d2) + 0.35 * exp(-d2 * d2 * 0.25)) * on2 * strobe * smoothstep(0.004, 0.02, bj);
-    float t2 = (q - 0.14) / 0.3;
-    float wide = exp(-t2 * t2);
-    // plasma: drifting filaments inside the glass
-    float fil = 1.0 - abs(2.0 * vnoise(gp * 0.22 + vec2(t * 0.7, -t * 0.4)) - 1.0);
-    float fil2 = 1.0 - abs(2.0 * vnoise(gp * 0.4 - vec2(t * 0.3, t * 0.8) + 4.0) - 1.0);
-    float plasma = pow(fil, 5.0) * 0.8 + pow(fil2, 7.0) * 0.5;
-    col = arcCol * 0.05 + vec3(0.01, 0.015, 0.03);
-    col += arcCol * wide * 0.3 * strobe;
-    col += arcCol * plasma * q * (0.4 + 0.4 * strobe);
-    col += (hotCol * 1.5 + arcCol * 0.5) * (arcIn + arcOut);
-    col += vec3(1.0) * spec * 0.15;
-    vec4 gc = 0.5 * (ringC(vUv, px, 2.5, 0.0) + ringC(vUv, px, 5.0, 0.39));
-    float gm = max(gc.r, max(gc.g, gc.b));
-    vec3 gpig = hueTurn(gm > 1e-6 ? gc.rgb / gm : vec3(1.0), uHue);
-    vec3 glowTint = mix(arcCol, mix(vec3(0.55, 0.72, 1.0), gpig, 0.55), uLineage);
-    float glowOut = smoothstep(0.0, 0.22, bsum(gc));
-    bg = uBg + glowTint * (glowOut * 0.22 + halo * 0.3) * strobe + (mix(glowTint, vec3(1.0), 0.8) * 1.5 + glowTint * 0.5) * arcOut;
+    vec2 surface = gp * 0.23 + N.xy * 1.6;
+    // Normal-based paths cross even small domes; bounded noise bends them without becoming outline rings.
+    float bluePath = dot(N.xy, vec2(0.92, 0.39))
+      + 0.28 * (vnoise(surface * 1.7 + vec2(t * 0.55, -t * 0.32)) - 0.5)
+      + 0.10 * sin(gp.y * 0.32 - t * 1.1);
+    float goldPath = dot(N.xy, vec2(-0.55, 0.84))
+      + 0.28 * (vnoise(surface * 1.9 + vec2(-t * 0.38, t * 0.47) + 23.0) - 0.5)
+      + 0.10 * sin(gp.x * 0.35 + t * 0.9);
+    vec2 blue = electricFilament(bluePath), gold = electricFilament(goldPath);
+    float bluePulse = 0.65 + 0.35 * vnoise(surface * 0.7 + vec2(t * 1.2, 9.0));
+    float goldPulse = 0.65 + 0.35 * vnoise(surface * 0.7 - vec2(4.0, t * 1.0));
+    vec3 blueCol = vec3(0.055, 0.38, 1.0), goldCol = vec3(1.0, 0.72, 0.035);
+    col = vec3(0.012, 0.023, 0.042) + vec3(0.025, 0.045, 0.07) * ndl + tintP * 0.018;
+    col += blueCol * (blue.x * 1.05 + blue.y * 0.18) * bluePulse;
+    col += goldCol * (gold.x * 1.05 + gold.y * 0.16) * goldPulse;
+    col += vec3(0.12, 0.18, 0.23) * (blue.x + gold.x) * 0.15 + vec3(0.05, 0.08, 0.13) * fres * fres;
+    col = col / (vec3(1.0) + col * 0.28);
+    bg = uBg + vec3(0.035, 0.08, 0.17) * halo * 0.25;
   }
   // the beat: the blobs flare (or, on paper, deepen) and throw a little light around them
   col *= 1.0 + uBeat * mix(0.4, -0.15, lt);
