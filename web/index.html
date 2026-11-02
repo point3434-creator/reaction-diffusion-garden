@@ -435,6 +435,25 @@
 #panel .score-range input { flex:1; min-width:0; }
 #panel #gardenScoreStatus { min-height:2.8em; }
 #panel .gs-library .chip { white-space:normal; }
+#panel .jukebox-transport { display:grid; grid-template-columns:1fr 1fr 1fr; }
+#panel .jukebox-transport .act { min-width:0; padding-inline:8px; }
+#panel .jukebox-search { display:grid; gap:6px; font-size:12px; }
+#panel .jukebox-search input { width:100%; min-width:0; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--ink); font:inherit; }
+#panel .jukebox-search input::placeholder { color:var(--ink-3); }
+#panel .jukebox-index { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:12px 0 7px; color:var(--ink-3); font-size:10px; }
+#panel .jukebox-index .act { min-height:32px; padding:5px 12px; font-size:12px; }
+#panel .jukebox-browse { margin:0 0 7px; font-size:10px; }
+#panel .jukebox-library { display:flex; flex-direction:column; flex-wrap:nowrap; gap:5px; height:270px; overflow-y:auto; overscroll-behavior-y:contain; scroll-snap-type:y proximity; scrollbar-width:thin; scrollbar-color:var(--accent) transparent; border-block:1px solid var(--line); padding:5px 4px; touch-action:pan-y; cursor:grab; user-select:none; }
+#panel .jukebox-library .chip { display:flex; flex:none; align-items:center; gap:12px; min-width:0; width:100%; min-height:48px; padding:7px 10px; white-space:normal; text-align:left; scroll-snap-align:start; cursor:inherit; }
+#panel .jukebox-library .chip[hidden] { display:none; }
+#panel .jukebox-library.dragging { cursor:grabbing; scroll-snap-type:none; }
+#panel .jukebox-number { flex:0 0 2ch; font-size:11px; font-variant-numeric:tabular-nums; color:var(--ink-3); }
+#panel .jukebox-track { min-width:0; overflow-wrap:anywhere; line-height:1.35; }
+#panel .jukebox-track small { display:block; font-size:10px; font-weight:400; color:var(--ink-3); }
+#panel .jukebox-manage { margin-top:12px; }
+#panel #gardenLibraryStatus { margin-top:8px; }
+#panel .jukebox-help { margin-top:12px; }
+#panel .jukebox-media #songPlay { display:none; }
 /* Static, detailed illustration: no animation loop, hit targets, or viewport-level decoration. */
 .panel-botany { position:absolute; display:block; pointer-events:none; z-index:3; overflow:visible; }
 .panel-botany * { pointer-events:none !important; }
@@ -676,7 +695,7 @@
         <div class="group" id="beats">
           <h3 class="eyebrow">Beats</h3>
           <div class="chips" id="beatChips" role="group" aria-label="Beats"></div>
-          <p class="note">Five original loops, synthesized as they play, each after one producer's feel. Nothing is sampled.</p>
+          <p class="note">Six hypnotic garden grooves, synthesized as they play. Nothing is sampled.</p>
         </div>
       </section>
 
@@ -692,7 +711,7 @@
       <p>The Atlas preset grows all of them at once. It takes the band of the map along the arc, straightens it out and stretches it over the dish, so that every cell reacts at its own feed and kill: the feed rises from one end of the dish to the other, and across the dish the kill runs from just below the arc to just above it. Seeds are scattered evenly and coloured by where they land, and each stretch of the dish grows the pattern that belongs there: spots in one corner, stripes and worms through the middle, holes along one edge, and nothing at all where the kill wins. Point at the dish and the dot on the map shows where you are.</p>
       <p>Stir moves the dish instead of painting on it. Under the chemistry runs a second simulation that you never see: water, after Jos Stam's stable fluids of 1999, the method that made computer fluids fast enough to play with. A drag pushes the water under it, the water carries the chemicals along, and pressure keeps the water from piling up anywhere, so a push in one place turns into a swirl. The swirl dies down in a few seconds, and the chemistry keeps going the whole time: coral wraps into a spiral and its lineages mix, and spots stretch into streaks, then pinch back into spots. Hold Shift to stir without leaving the brush.</p>
       <p>The colours are not part of the chemistry. Every bit of B remembers which stroke it descends from, and new B inherits the colour of whatever made it, so each stroke founds a lineage. Where two lineages meet, the colours mix a little; where one outgrows another, it inherits the ground.</p>
-      <p>The surface is a trick of the light as well. The renderer reads the concentration as a low hill, works out which way each point of it faces, and lights it; the Made of row only changes what the hill is made of. Quicksilver reflects a small studio, wax lets the light out through its thin edges, neon lights nothing but the rim, and the watercolour pools its pigment where a real wash would. Fire, ice and electricity add time: each point of the flames looks down the screen for the blob burning beneath it, through noise that drifts upward; the arcs are the edge read through jittering noise and strobed; the frost glints twinkle and the cold mist drifts. In the lineage scheme each stroke burns its own colour, like a flame test. Contour draws the field's own level lines, the lines a weather map draws for pressure, and they keep going faintly outside each blob because the chemical does. The iridescent film gets its colours the way a soap bubble does, from light reflected off its top and bottom surfaces interfering, and the prism bends blue more than red, which is why its graph paper fringes. The chemistry underneath is the same.</p>
+      <p>The surface is a trick of the light as well. The renderer reads the concentration as a low hill, works out which way each point of it faces, and lights it; the Made of row only changes what the hill is made of. Quicksilver reflects a small studio, wax lets the light out through its thin edges, neon lights nothing but the rim, and the watercolour pools its pigment where a real wash would. Lava, ice and electricity add time: lava rolls red-orange turbulence over dark molten pockets with yellow-white hot ridges; thin blue and yellow electrical filaments travel over each curved blob; the frost glints twinkle and the cold mist drifts. Lava keeps its hot mineral colours, and electricity keeps its blue and gold, while the other materials follow the selected palette. Contour draws the field's own level lines, the lines a weather map draws for pressure, and they keep going faintly outside each blob because the chemical does. The iridescent film gets its colours the way a soap bubble does, from light reflected off its top and bottom surfaces interfering, and the prism bends blue more than red, which is why its graph paper fringes. The chemistry underneath is the same.</p>
       <p>Heart swaps the chemistry for the simplest model of excitable tissue, Barkley's. A cell fires when its neighbours push it over a threshold, and then it has to rest before it can fire again: one rule, plus the usual spreading. A pacemaker firing that rule in one spot gives the rings of a normal rhythm. Break a wave, with scar tissue or with a second stimulus landing in the refractory wake of the first, and the free end curls into a spiral that never has to stop, because it is forever chasing tissue that has just recovered. That spiral is re-entry, the mechanism of a flutter; several of them at once is fibrillation. A shock fires every cell at the same instant, so every cell is resting at the same instant, and the spirals have nothing left to run on. That is what a defibrillator does. The trace beside the sliders is the whole dish's voltage over time.</p>
       <p>Quantum replaces the chemistry with the Schrödinger equation, the other great diffusion equation, the one with an <i>i</i> in it. The wavefunction is a complex number at every point: its size squared is the chance of finding the particle there, drawn as the hill, and its phase is drawn as colour. Throw a packet and it carries a wavelength, shorter the faster it goes: those are the rainbow stripes inside it. Watch them: the stripes drift backwards through the packet as it travels, because the phase moves at half the speed the packet does. Leave a packet alone and it spreads, since a particle with a definite place has no definite speed. Send one at two slits and the two halves interfere with each other on the far side, which is the experiment that makes the whole subject unavoidable; the trace beside the sliders is what a detector along the right edge would record. Send one at a thin wall taller than its energy and part of it comes through anyway. And put one in a bowl and it orbits without spreading at all, the closest a quantum thing comes to behaving like a ball.</p>
       <p>The Schrödinger equation also runs backwards. Nothing in it forgets, so turn time around and everything retraces its steps, and the scheme that steps the dish forwards can be run backwards step for step. Press Rewind and the dish does just that: the fringes beyond the double slit gather back through the slits into the one packet that made them. Only what the absorbing edges swallowed is gone for good. The garden and the heart can't do this, because spreading smooths away the very details that running backwards would need.</p>
@@ -1682,7 +1701,7 @@ function hueRGB(hue) {
     { name: 'Velvet', id: 2 },
     { name: 'Wax', id: 3 },
     { name: 'Neon', id: 4, dark: true },
-    { name: 'Fire', id: 7, dark: true },
+    { name: 'Lava', id: 7, dark: true },
     { name: 'Ice', id: 8 },
     { name: 'Electricity', id: 9, dark: true },
     { name: 'Contour', id: 11, dark: true },
@@ -2104,12 +2123,17 @@ float gridAt(vec2 p) {
   vec2 f = abs(fract(p * 0.2) - 0.5) * 5.0;
   return 1.0 - smoothstep(0.1, 0.45, min(f.x, f.y));
 }
-// Heat to colour. A lineage burns its own hue, dark through hue to white-hot; a palette burns its ramp.
-vec3 flameCol(float x, vec3 hue) {
-  vec3 a = hue * smoothstep(0.0, 0.45, x) * (0.25 + 0.75 * smoothstep(0.1, 0.7, x));
-  a = mix(a, vec3(1.0, 0.98, 0.92), smoothstep(0.72, 1.0, x));
-  vec3 l = texture(uLut, vec2(mix(x, 1.0 - x, uLutFlip), 0.5)).rgb * smoothstep(0.0, 0.08, x);
-  return mix(l, a, uLineage);
+// Interpolate lattice slices so the heat rolls through the height of each dome.
+float lavaNoise(vec3 p) {
+  float z = floor(p.z), f = fract(p.z);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(vnoise(p.xy + vec2(37.0, 17.0) * z),
+             vnoise(p.xy + vec2(37.0, 17.0) * (z + 1.0)), f);
+}
+// A narrow, antialiased core and a restrained halo, measured in screen pixels.
+vec2 electricFilament(float path) {
+  float d = abs(path) / max(fwidth(path), 0.001);
+  return vec2(1.0 - smoothstep(0.3, 1.0, d), exp(-d * d * 0.16));
 }
 
 void main() {
@@ -2293,33 +2317,25 @@ void main() {
     col += vec3(1.0) * pow(max(dot(Nd, H), 0.0), 50.0) * mix(0.16, 0.08, lt);
     bg = paper;
   } else if (uMat == 7) {
-    // ---- fire: the body is embers, and every point looks down the screen for the blob burning below it ----
+    // ---- lava: rolling hot ridges and dark pockets on the existing domes ----
+    // Visual reference: Duke's Pyroclastic fireball, https://www.shadertoy.com/view/MtXSzS
+    // Our height field supplies the surface; no separate sphere or ray march is needed.
     vec2 gp = vUv * uTexSize;
     float t = uTime;
-    // tongues: tall narrow features scrolling upward, and a per-column flicker
-    float colN = vnoise(vec2(gp.x * 0.22 + t * 0.3, t * 1.4));
-    float tongue = vnoise(vec2(gp.x * 0.5, gp.y * 0.12 + t * 2.4));
-    float tongue2 = vnoise(vec2(gp.x * 1.1 + 4.0, gp.y * 0.3 + t * 3.6));
-    float flick = 0.5 * colN + 0.3 * tongue + 0.2 * tongue2;
-    float reach = 6.0 + 18.0 * flick * flick;
-    float heat = 0.0;
-    vec4 src = c;
-    for (int k = 0; k < 12; k++) {
-      float d = (float(k) + 0.5) * 1.6;
-      float wob = (vnoise(vec2(gp.x * 0.4 + float(k) * 0.7, gp.y * 0.25 - d * 0.2 + t * 1.6)) - 0.5) * (1.0 + 0.25 * d);
-      vec4 smp = texture(uField, vUv + vec2(wob, d) * px);
-      float hk = smoothstep(E0 * 0.7, BPK * 0.7, bsum(smp)) * clamp(1.0 - d / reach, 0.0, 1.0);
-      if (hk > heat) { heat = hk; src = smp; }
-    }
-    heat = clamp(heat * (0.45 + 0.65 * smoothstep(0.2, 0.8, tongue)) * (0.7 + 0.5 * tongue2), 0.0, 1.0);
-    float sm = max(src.r, max(src.g, src.b));
-    vec3 fhue = hueTurn(sm > 1e-5 ? src.rgb / sm : vec3(1.0), uHue);
-    vec3 flame = flameCol(pow(heat, 0.85), fhue);
-    float pulse = 0.75 + 0.25 * vnoise(gp * 0.35 + vec2(t * 0.6, t * 0.9));
-    float crust = smoothstep(0.3, 0.8, vnoise(gp * 0.7 + vec2(0.0, t * 0.2)));
-    vec3 body = flameCol(0.14 + 0.36 * q * pulse, tintP) * (0.4 + 0.6 * crust);
-    col = body + flame * 1.0 + vec3(1.0, 0.9, 0.7) * spec * 0.1;
-    bg = uBg + flame * 1.15 + flameCol(0.3, tintP) * halo * 0.5;
+    vec3 p = vec3(gp * 0.19, h * 2.4) + vec3(0.04, -0.24, 0.12) * t;
+    vec2 warp = vec2(lavaNoise(p * 0.65), lavaNoise(p * 0.65 + 13.7)) - 0.5;
+    p.xy += warp * 1.8 + N.xy * 0.35;
+    float turbulence = abs(2.0 * lavaNoise(p) - 1.0) * 0.65;
+    turbulence += abs(2.0 * lavaNoise(p * 2.03 + 7.1) - 1.0) * 0.25;
+    turbulence += abs(2.0 * lavaNoise(p * 4.09 + 21.2) - 1.0) * 0.10;
+    float heat = clamp(1.04 - turbulence * 1.55, 0.0, 1.0);
+    col = mix(vec3(0.075, 0.008, 0.006), vec3(0.52, 0.025, 0.002), smoothstep(0.12, 0.50, heat));
+    col = mix(col, vec3(1.15, 0.16, 0.008), smoothstep(0.46, 0.72, heat));
+    col = mix(col, vec3(1.35, 0.84, 0.14), smoothstep(0.70, 0.91, heat));
+    col = mix(col, vec3(1.45, 1.30, 0.95), smoothstep(0.89, 1.0, heat));
+    col *= 0.72 + 0.28 * h;
+    col = col / (vec3(1.0) + col * 0.25);
+    bg = uBg + vec3(0.34, 0.055, 0.004) * halo * 0.45;
   } else if (uMat == 8) {
     // ---- ice: tinted ice with frost veins, glints that twinkle, and a cold mist around it ----
     vec2 gp = vUv * uTexSize;
@@ -2403,41 +2419,27 @@ void main() {
     float g0 = gridAt(gp);
     bg = mix(uBg + g0 * 0.05, uBg * (1.0 - g0 * 0.12), lt) * (1.0 - shadow * mix(0.4, 0.2, lt));
   } else {
-    // ---- electricity: arcs that hug the edge, jitter, flicker and strobe; plasma within ----
+    // ---- electricity: blue and gold filaments travel across each curved surface ----
     vec2 gp = vUv * uTexSize;
     float t = uTime;
-    vec3 arcCol = mix(vec3(0.55, 0.72, 1.0), tintP, 0.55);
-    vec3 hotCol = mix(arcCol, vec3(1.0), 0.8);
-    float strobe = 0.55 + 0.45 * hash12(vec2(floor(t * 20.0), 1.0));
-    // the arc is an iso-line of the field, read through a jitter that is large and slow plus small and quick
-    vec2 jag = (vec2(vnoise(gp * 0.12 + vec2(0.0, t * 6.0)), vnoise(gp * 0.12 + vec2(t * 5.0, 50.0))) - 0.5) * 6.0
-             + (vec2(vnoise(gp * 0.45 + vec2(0.0, t * 13.0) + 9.0), vnoise(gp * 0.45 + vec2(t * 11.0, 70.0))) - 0.5) * 1.6;
-    float bj = bsum(texture(uField, vUv + jag * px));
-    float lv1 = E0 + 0.03 + 0.05 * vnoise(vec2(t * 3.0, 7.0));
-    float lv2 = E0 * (0.25 + 0.4 * vnoise(vec2(t * 2.3, 3.0)));
-    float d1 = (bj - lv1) / 0.03;
-    float d2 = (bj - lv2) / 0.011;
-    float on1 = smoothstep(0.42, 0.56, vnoise(gp * 0.08 + vec2(t * 4.0, 0.0)));
-    float on2 = smoothstep(0.5, 0.64, vnoise(gp * 0.07 + vec2(0.0, t * 3.0) + 20.0));
-    float arcIn = (exp(-d1 * d1) + 0.35 * exp(-d1 * d1 * 0.12)) * on1 * strobe;
-    float arcOut = (exp(-d2 * d2) + 0.35 * exp(-d2 * d2 * 0.25)) * on2 * strobe * smoothstep(0.004, 0.02, bj);
-    float t2 = (q - 0.14) / 0.3;
-    float wide = exp(-t2 * t2);
-    // plasma: drifting filaments inside the glass
-    float fil = 1.0 - abs(2.0 * vnoise(gp * 0.22 + vec2(t * 0.7, -t * 0.4)) - 1.0);
-    float fil2 = 1.0 - abs(2.0 * vnoise(gp * 0.4 - vec2(t * 0.3, t * 0.8) + 4.0) - 1.0);
-    float plasma = pow(fil, 5.0) * 0.8 + pow(fil2, 7.0) * 0.5;
-    col = arcCol * 0.05 + vec3(0.01, 0.015, 0.03);
-    col += arcCol * wide * 0.3 * strobe;
-    col += arcCol * plasma * q * (0.4 + 0.4 * strobe);
-    col += (hotCol * 1.5 + arcCol * 0.5) * (arcIn + arcOut);
-    col += vec3(1.0) * spec * 0.15;
-    vec4 gc = 0.5 * (ringC(vUv, px, 2.5, 0.0) + ringC(vUv, px, 5.0, 0.39));
-    float gm = max(gc.r, max(gc.g, gc.b));
-    vec3 gpig = hueTurn(gm > 1e-6 ? gc.rgb / gm : vec3(1.0), uHue);
-    vec3 glowTint = mix(arcCol, mix(vec3(0.55, 0.72, 1.0), gpig, 0.55), uLineage);
-    float glowOut = smoothstep(0.0, 0.22, bsum(gc));
-    bg = uBg + glowTint * (glowOut * 0.22 + halo * 0.3) * strobe + (mix(glowTint, vec3(1.0), 0.8) * 1.5 + glowTint * 0.5) * arcOut;
+    vec2 surface = gp * 0.23 + N.xy * 1.6;
+    // Normal-based paths cross even small domes; bounded noise bends them without becoming outline rings.
+    float bluePath = dot(N.xy, vec2(0.92, 0.39))
+      + 0.28 * (vnoise(surface * 1.7 + vec2(t * 0.55, -t * 0.32)) - 0.5)
+      + 0.10 * sin(gp.y * 0.32 - t * 1.1);
+    float goldPath = dot(N.xy, vec2(-0.55, 0.84))
+      + 0.28 * (vnoise(surface * 1.9 + vec2(-t * 0.38, t * 0.47) + 23.0) - 0.5)
+      + 0.10 * sin(gp.x * 0.35 + t * 0.9);
+    vec2 blue = electricFilament(bluePath), gold = electricFilament(goldPath);
+    float bluePulse = 0.65 + 0.35 * vnoise(surface * 0.7 + vec2(t * 1.2, 9.0));
+    float goldPulse = 0.65 + 0.35 * vnoise(surface * 0.7 - vec2(4.0, t * 1.0));
+    vec3 blueCol = vec3(0.055, 0.38, 1.0), goldCol = vec3(1.0, 0.72, 0.035);
+    col = vec3(0.012, 0.023, 0.042) + vec3(0.025, 0.045, 0.07) * ndl + tintP * 0.018;
+    col += blueCol * (blue.x * 1.05 + blue.y * 0.18) * bluePulse;
+    col += goldCol * (gold.x * 1.05 + gold.y * 0.16) * goldPulse;
+    col += vec3(0.12, 0.18, 0.23) * (blue.x + gold.x) * 0.15 + vec3(0.05, 0.08, 0.13) * fres * fres;
+    col = col / (vec3(1.0) + col * 0.28);
+    bg = uBg + vec3(0.035, 0.08, 0.17) * halo * 0.25;
   }
   // the beat: the blobs flare (or, on paper, deepen) and throw a little light around them
   col *= 1.0 + uBeat * mix(0.4, -0.15, lt);
@@ -3506,7 +3508,7 @@ void main() {
   // ---- music ----
   var levelEl = $('level'), trackEl = $('track'), songPlayBtn = $('songPlay'), musicOffBtn = $('musicOff');
   var music = {
-    on: false, mode: null, actx: null, analyser: null, micNode: null, micStream: null, freq: null, time: null,
+    on: false, mode: null, actx: null, analyser: null, micNode: null, micStream: null, freq: null, spectrum: null, time: null,
     loud: 0, bass: 0, high: 0, peakL: 0.04, peakB: 0.08, peakH: 0.04,
     bassHist: new Float32Array(40), highHist: new Float32Array(40), hi: 0, prevBass: 0, prevHigh: 0,
     lastKick: 0, lastSnare: 0, hue: 200, flash: 0,
@@ -3522,6 +3524,7 @@ void main() {
       music.analyser.fftSize = 2048;
       music.analyser.smoothingTimeConstant = 0.35;
       music.freq = new Uint8Array(music.analyser.frequencyBinCount);
+      music.spectrum = new Float32Array(music.analyser.frequencyBinCount);
       music.time = new Uint8Array(music.analyser.fftSize);
     }
     if (music.actx.state === 'suspended') music.actx.resume();
@@ -3638,9 +3641,15 @@ void main() {
   function analyse(now) {
     var an = music.analyser;
     an.getByteFrequencyData(music.freq);
+    an.getFloatFrequencyData(music.spectrum);
     an.getByteTimeDomainData(music.time);
     var binHz = music.actx.sampleRate / an.fftSize;
     var bass = band(30, 150, binHz), high = band(2500, 9000, binHz);
+    // Onset ratios need linear amplitude; logarithmic byte levels hide kick peaks.
+    var firstBass = Math.max(1, Math.round(30 / binHz)), lastBass = Math.min(music.spectrum.length - 1, Math.round(150 / binHz));
+    var bassPower = 0;
+    for (var bin = firstBass; bin <= lastBass; bin++) bassPower += Math.pow(10, music.spectrum[bin] / 10);
+    var bassOnset = Math.sqrt(bassPower / (lastBass - firstBass + 1));
     var rms = 0, T = music.time, L = T.length;
     for (var i = 0; i < L; i += 2) { var v = (T[i] - 128) / 128; rms += v * v; }
     rms = Math.sqrt(rms / (L / 2));
@@ -3664,9 +3673,9 @@ void main() {
     var H = music.bassHist.length, mb = 0, mh = 0;
     for (i = 0; i < H; i++) { mb += music.bassHist[i]; mh += music.highHist[i]; }
     mb /= H; mh /= H;
-    if (bass > mb * 1.3 && bass > 0.1 && bass >= music.prevBass && now - music.lastKick > 200) {
+    if (bassOnset > mb * 1.3 && bass > 0.1 && bassOnset >= music.prevBass && now - music.lastKick > 200) {
       music.lastKick = now;
-      plant(clamp((bass / Math.max(mb, 0.02) - 1) / 1.2, 0.15, 1));
+      plant(clamp((bassOnset / Math.max(mb, 1e-6) - 1) / 1.2, 0.15, 1));
       // every kick pulses the surface; every second one turns the colours a step
       music.beat = 1;
       music.kicks++;
@@ -3676,8 +3685,8 @@ void main() {
       music.lastSnare = now;
       clearPatch(clamp((high / Math.max(mh, 0.01) - 1) / 1.5, 0.1, 1));
     }
-    music.bassHist[music.hi] = bass; music.highHist[music.hi] = high; music.hi = (music.hi + 1) % H;
-    music.prevBass = bass; music.prevHigh = high;
+    music.bassHist[music.hi] = bassOnset; music.highHist[music.hi] = high; music.hi = (music.hi + 1) % H;
+    music.prevBass = bassOnset; music.prevHigh = high;
   }
   function plant(strength) {
     if (!sim) return;
@@ -3707,7 +3716,7 @@ void main() {
     sim.paint(Math.random() * sim.w, Math.random() * sim.h, brushRadius() * (1.4 + strength * 2), true);
   }
 
-  // ---- beats: five original loops, synthesized live, each an homage to a producer's feel ----
+  // ---- beats: original loops, synthesized live for a hypnotic garden ----
   // Nothing is sampled. Every drum, note and scratch is an oscillator or a burst of noise, shaped.
   var NOTE_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   function N(s) {
@@ -3719,26 +3728,26 @@ void main() {
 
   var BEATS = [
     {
-      name: 'Drunk swing', after: 'J Dilla', bpm: 88, swing: 0.54,
+      name: 'Dewdrop Swing', style: 'Floating keys & loose swing', bpm: 88, swing: 0.54,
       drums: { kick: 'x..x..x...x.....|x..x.....x..x...', snare: '....x.......x...|....x.......x..g', hat: 'x.x.x.xgx.x.x.x.|x.x.x.x.x.xgx.x.', ohat: '..............x.|................' },
       feel: { kickOff: [0, -22, 18, 8, -12], snareOff: 30, hatOff: -6, humanize: 8 },
-      bus: { drumLP: 7500, musicLP: 3800, grit: 0.25, crackle: 0.6, verb: 0.08 },
+      bus: { drumLP: 10500, musicLP: 5600, grit: 0.18, crackle: 0.18, verb: 0.09, drums: 1, music: 1.05, bass: 0.67 },
       bass: { kind: 'sub', notes: [
         [0, 0, 'F1', 3], [0, 6, 'F1', 2], [0, 10, 'Ab1', 1], [0, 12, 'F1', 3],
         [1, 0, 'Db1', 3], [1, 6, 'Db1', 2], [1, 11, 'Eb1', 1], [1, 12, 'Db1', 2],
         [2, 0, 'Bb1', 3], [2, 6, 'Bb1', 2], [2, 10, 'Db2', 1], [2, 12, 'Bb1', 3],
         [3, 0, 'C2', 3], [3, 6, 'C2', 2], [3, 10, 'Bb1', 1], [3, 12, 'C2', 2] ] },
       keys: { kind: 'rhodes', notes: [
-        [0, 0, ch('F3', 'Ab3', 'C4', 'Eb4', 'G4'), 6], [0, 6, ch('F3', 'Ab3', 'C4', 'Eb4', 'G4'), 4],
-        [1, 0, ch('Db3', 'F3', 'Ab3', 'C4'), 6], [1, 8, ch('Db3', 'F3', 'Ab3', 'C4'), 3],
-        [2, 0, ch('Bb2', 'Db3', 'F3', 'Ab3', 'C4'), 6], [2, 6, ch('Bb2', 'Db3', 'F3', 'Ab3', 'C4'), 4],
-        [3, 0, ch('C3', 'E3', 'G3', 'Bb3', 'Db4'), 6], [3, 8, ch('C3', 'E3', 'G3', 'Bb3'), 3] ] }
+        [0, 0, ch('Ab3', 'C4', 'Eb4', 'G4'), 6], [0, 6, ch('Ab3', 'C4', 'Eb4', 'G4'), 4],
+        [1, 0, ch('F3', 'Ab3', 'C4'), 6], [1, 8, ch('F3', 'Ab3', 'C4'), 3],
+        [2, 0, ch('Db3', 'F3', 'Ab3', 'C4'), 6], [2, 6, ch('Db3', 'F3', 'Ab3', 'C4'), 4],
+        [3, 0, ch('E3', 'G3', 'Bb3', 'Db4'), 6], [3, 8, ch('E3', 'G3', 'Bb3'), 3] ] }
     },
     {
-      name: 'G-funk', after: 'Dr. Dre', bpm: 93, swing: 0.5,
+      name: 'Sunlit Fern', style: 'Warm bass & drifting synths', bpm: 93, swing: 0.5,
       drums: { kick: 'x......x..x.....|x......x..x..x..', snare: '....x.......x...|....x.......x...', clap: '....x.......x...|....x.......x...', hat: 'xgx.xgx.xgx.xgx.|xgx.xgx.xgx.xgxg', ohat: '................|..............x.' },
       feel: { kickOff: [0], snareOff: 0, hatOff: 0, humanize: 3 },
-      bus: { drumLP: 12000, musicLP: 9000, grit: 0.08, crackle: 0, verb: 0.22 },
+      bus: { drumLP: 12500, musicLP: 8500, grit: 0.08, crackle: 0, verb: 0.12, drums: 0.9, music: 0.95, bass: 0.75 },
       bass: { kind: 'moog', notes: [
         [0, 0, 'G1', 3], [0, 3, 'G1', 1], [0, 6, 'Bb1', 2], [0, 10, 'G1', 2], [0, 14, 'F1', 1],
         [1, 0, 'G1', 3], [1, 3, 'G1', 1], [1, 6, 'Bb1', 2], [1, 10, 'G1', 2], [1, 14, 'F1', 1],
@@ -3747,7 +3756,7 @@ void main() {
       keys: { kind: 'stab', clean: true, notes: [
         [0, 2, ch('G3', 'Bb3', 'D4'), 1], [0, 6, ch('G3', 'Bb3', 'D4'), 1], [0, 10, ch('G3', 'Bb3', 'D4'), 1], [0, 14, ch('G3', 'Bb3', 'D4'), 1],
         [1, 2, ch('G3', 'Bb3', 'D4'), 1], [1, 6, ch('G3', 'Bb3', 'D4'), 1], [1, 10, ch('G3', 'Bb3', 'D4'), 1], [1, 14, ch('G3', 'Bb3', 'D4'), 1],
-        [2, 2, ch('Eb3', 'G3', 'Bb3'), 1], [2, 6, ch('Eb3', 'G3', 'Bb3'), 1], [2, 10, ch('Eb3', 'G3', 'Bb3'), 1], [2, 14, ch('Eb3', 'G3', 'Bb3'), 1],
+        [2, 2, ch('G3', 'Bb3', 'Eb4'), 1], [2, 6, ch('G3', 'Bb3', 'Eb4'), 1], [2, 10, ch('G3', 'Bb3', 'Eb4'), 1], [2, 14, ch('G3', 'Bb3', 'Eb4'), 1],
         [3, 2, ch('F3', 'A3', 'C4'), 1], [3, 6, ch('F3', 'A3', 'C4'), 1], [3, 10, ch('F3', 'A3', 'C4'), 1], [3, 14, ch('F3', 'A3', 'C4'), 1] ] },
       lead: [
         [0, 0, 'D5', 6, 0], [0, 6, 'F5', 4, 1], [0, 12, 'D5', 4, 1],
@@ -3756,10 +3765,10 @@ void main() {
         [3, 0, 'D5', 6, 1], [3, 8, 'G4', 8, 1] ]
     },
     {
-      name: 'Chop & scratch', after: 'DJ Premier', bpm: 90, swing: 0.57,
+      name: 'Bramble Breaks', style: 'Chopped keys & crisp breaks', bpm: 90, swing: 0.57,
       drums: { kick: 'x.....x.x.......|x.....x...x.x...', snare: '....x.......x...|....x.......x...', hat: 'x.x.x.x.x.x.x.x.|x.x.x.xgx.x.x.xg', ohat: '' },
       feel: { kickOff: [0, 6], snareOff: 10, hatOff: 0, humanize: 5 },
-      bus: { drumLP: 9000, musicLP: 5500, grit: 0.35, crackle: 0.35, verb: 0.05 },
+      bus: { drumLP: 11200, musicLP: 6500, grit: 0.24, crackle: 0.12, verb: 0.055, drums: 1, music: 1.05, bass: 0.7 },
       bass: { kind: 'sub', notes: [
         [0, 0, 'D1', 4], [0, 6, 'D1', 1], [0, 8, 'F1', 3],
         [1, 0, 'D1', 4], [1, 6, 'C1', 3], [1, 12, 'Bb1', 3],
@@ -3767,16 +3776,16 @@ void main() {
         [3, 0, 'D1', 4], [3, 6, 'C1', 3], [3, 12, 'Bb1', 2] ] },
       keys: { kind: 'stab', notes: [
         [0, 0, ch('D3', 'F3', 'A3', 'C4'), 2], [0, 3, ch('D3', 'F3', 'A3', 'C4'), 1], [0, 6, ch('D3', 'F3', 'A3', 'C4'), 1], [0, 8, ch('F3', 'A3', 'C4'), 2], [0, 11, ch('F3', 'A3', 'C4'), 1], [0, 14, ch('D3', 'F3', 'A3', 'C4'), 1],
-        [1, 0, ch('D3', 'F3', 'A3', 'C4'), 2], [1, 3, ch('D3', 'F3', 'A3', 'C4'), 1], [1, 6, ch('C3', 'E3', 'G3'), 2], [1, 10, ch('C3', 'E3', 'G3'), 1], [1, 12, ch('Bb2', 'D3', 'F3'), 2], [1, 14, ch('Bb2', 'D3', 'F3'), 1],
+        [1, 0, ch('D3', 'F3', 'A3', 'C4'), 2], [1, 3, ch('D3', 'F3', 'A3', 'C4'), 1], [1, 6, ch('C3', 'E3', 'G3'), 2], [1, 10, ch('C3', 'E3', 'G3'), 1], [1, 12, ch('F3', 'Bb3', 'D4'), 2], [1, 14, ch('F3', 'Bb3', 'D4'), 1],
         [2, 0, ch('D3', 'F3', 'A3', 'C4'), 2], [2, 3, ch('D3', 'F3', 'A3', 'C4'), 1], [2, 6, ch('D3', 'F3', 'A3', 'C4'), 1], [2, 8, ch('F3', 'A3', 'C4'), 2], [2, 11, ch('F3', 'A3', 'C4'), 1], [2, 14, ch('D3', 'F3', 'A3', 'C4'), 1],
-        [3, 0, ch('D3', 'F3', 'A3', 'C4'), 2], [3, 3, ch('D3', 'F3', 'A3', 'C4'), 1], [3, 6, ch('C3', 'E3', 'G3'), 2], [3, 10, ch('C3', 'E3', 'G3'), 1], [3, 12, ch('Bb2', 'D3', 'F3'), 1], [3, 13, ch('Bb2', 'D3', 'F3'), 1], [3, 14, ch('Bb2', 'D3', 'F3'), 1], [3, 15, ch('Bb2', 'D3', 'F3'), 1] ] },
+        [3, 0, ch('D3', 'F3', 'A3', 'C4'), 2], [3, 3, ch('D3', 'F3', 'A3', 'C4'), 1], [3, 6, ch('C3', 'E3', 'G3'), 2], [3, 10, ch('C3', 'E3', 'G3'), 1], [3, 12, ch('F3', 'Bb3', 'D4'), 1], [3, 13, ch('F3', 'Bb3', 'D4'), 1], [3, 14, ch('F3', 'Bb3', 'D4'), 1], [3, 15, ch('F3', 'Bb3', 'D4'), 1] ] },
       scratch: [[1, 14], [3, 8], [3, 9], [3, 10], [3, 11]]
     },
     {
-      name: 'Shaolin dust', after: 'RZA', bpm: 86, swing: 0.53,
+      name: 'Moonlit Moss', style: 'Nocturnal piano & misty strings', bpm: 86, swing: 0.53,
       drums: { kick: 'x.........x.....|x.....x...x.....', snare: '....x.......x...|....x.......x...', hat: 'x...x...x...x...|x...x.x.x...x...', ohat: '' },
       feel: { kickOff: [0, 14, -10], snareOff: 36, hatOff: 10, humanize: 16 },
-      bus: { drumLP: 3800, musicLP: 3000, grit: 0.5, crackle: 0.9, verb: 0.12 },
+      bus: { drumLP: 7800, musicLP: 5200, grit: 0.24, crackle: 0.22, verb: 0.13, drums: 1, music: 1, bass: 0.67 },
       bass: { kind: 'sub', notes: [
         [0, 0, 'C#1', 6], [0, 10, 'C#1', 3], [1, 0, 'C#1', 6], [1, 6, 'E1', 2], [1, 10, 'C#1', 3],
         [2, 0, 'A1', 6], [2, 10, 'A1', 3], [3, 0, 'G#1', 6], [3, 8, 'G#1', 2], [3, 12, 'G#1', 3] ] },
@@ -3785,30 +3794,74 @@ void main() {
         [1, 0, 'B3', 3], [1, 3, 'C#4', 3], [1, 6, 'A3', 2], [1, 8, 'B3', 4], [1, 12, 'C#4', 4],
         [2, 0, 'C#4', 2], [2, 2, 'E4', 2], [2, 4, 'G#4', 4], [2, 8, 'G4', 2], [2, 10, 'E4', 2], [2, 12, 'C#4', 4],
         [3, 0, 'B3', 3], [3, 3, 'C#4', 3], [3, 6, 'A3', 2], [3, 8, 'B3', 4], [3, 12, 'C#4', 4] ],
-      strings: [[0, 0, ch('C#3', 'E3', 'G#3'), 32], [2, 0, ch('A2', 'C#3', 'E3'), 16], [3, 0, ch('G#2', 'C3', 'D#3', 'F#3'), 16]]
+      strings: [[0, 0, ch('E3', 'G#3', 'C#4'), 32], [2, 0, ch('E3', 'A3', 'C#4'), 16], [3, 0, ch('F#3', 'G#3', 'C4', 'D#4'), 16]]
     },
     {
-      name: 'Soul horns', after: 'Pete Rock', bpm: 95, swing: 0.58,
+      name: 'Marigold Brass', style: 'Soft brass & soulful swing', bpm: 95, swing: 0.58,
       drums: { kick: 'x..x......x.....|x..x.....x..x...', snare: '....x.......x...|....x.......x..g', hat: 'x.xgx.xgx.xgx.xg|x.xgx.xgx.xgx.xg', ohat: '..............x.|................' },
       feel: { kickOff: [0, -6, 10], snareOff: 12, hatOff: 0, humanize: 7 },
-      bus: { drumLP: 8000, musicLP: 4500, grit: 0.2, crackle: 0.4, verb: 0.1 },
+      bus: { drumLP: 10800, musicLP: 6800, grit: 0.14, crackle: 0.12, verb: 0.09, drums: 0.95, music: 1, bass: 0.67 },
       bass: { kind: 'sub', notes: [
         [0, 0, 'Eb1', 3], [0, 3, 'Eb1', 1], [0, 6, 'Bb1', 2], [0, 8, 'Eb1', 2], [0, 12, 'G1', 2], [0, 14, 'Ab1', 2],
         [1, 0, 'C2', 3], [1, 3, 'C2', 1], [1, 6, 'G1', 2], [1, 8, 'C2', 2], [1, 12, 'Eb2', 2], [1, 14, 'D2', 2],
         [2, 0, 'Ab1', 3], [2, 3, 'Ab1', 1], [2, 6, 'Eb2', 2], [2, 8, 'Ab1', 2], [2, 12, 'C2', 2], [2, 14, 'Bb1', 2],
         [3, 0, 'Bb1', 3], [3, 3, 'Bb1', 1], [3, 6, 'F2', 2], [3, 8, 'Bb1', 2], [3, 12, 'Ab1', 2], [3, 14, 'G1', 2] ] },
       keys: { kind: 'rhodes', warm: true, notes: [
-        [0, 0, ch('Eb3', 'G3', 'Bb3', 'D4', 'F4'), 6], [0, 8, ch('Eb3', 'G3', 'Bb3', 'D4', 'F4'), 5],
-        [1, 0, ch('C3', 'Eb3', 'G3', 'Bb3', 'D4'), 6], [1, 8, ch('C3', 'Eb3', 'G3', 'Bb3', 'D4'), 5],
-        [2, 0, ch('Ab2', 'C3', 'Eb3', 'G3', 'Bb3'), 6], [2, 8, ch('Ab2', 'C3', 'Eb3', 'G3', 'Bb3'), 5],
-        [3, 0, ch('Bb2', 'D3', 'Ab3', 'C4', 'G4'), 6], [3, 8, ch('Bb2', 'D3', 'Ab3', 'C4', 'G4'), 5] ] },
-      horn: [[0, 0, ch('Eb4', 'G4'), 2], [0, 6, ch('Eb4', 'G4'), 1], [1, 0, ch('C4', 'Eb4'), 2],
-             [2, 0, ch('C4', 'Eb4'), 2], [2, 6, ch('C4', 'Eb4'), 1], [2, 10, ch('Bb3', 'D4'), 1],
-             [3, 0, ch('Bb3', 'D4'), 2], [3, 8, ch('F4', 'Ab4'), 2]]
+        [0, 0, ch('G3', 'Bb3', 'D4', 'F4'), 4], [0, 8, ch('G3', 'Bb3', 'D4', 'F4'), 3],
+        [1, 0, ch('Eb3', 'G3', 'Bb3', 'D4'), 4], [1, 8, ch('Eb3', 'G3', 'Bb3', 'D4'), 3],
+        [2, 0, ch('Eb3', 'G3', 'Bb3', 'C4'), 4], [2, 8, ch('Eb3', 'G3', 'Bb3', 'C4'), 3],
+        [3, 0, ch('Ab3', 'C4', 'D4', 'G4'), 4], [3, 8, ch('Ab3', 'C4', 'D4', 'G4'), 3] ] },
+      horn: [[0, 2, ch('Eb4', 'G4'), 2], [0, 6, ch('Eb4', 'G4'), 1], [1, 2, ch('C4', 'Eb4'), 2],
+             [2, 2, ch('C4', 'Eb4'), 2], [2, 6, ch('C4', 'Eb4'), 1], [2, 10, ch('Bb3', 'D4'), 1],
+             [3, 2, ch('Bb3', 'D4'), 2], [3, 10, ch('F4', 'Ab4'), 2]]
+    },
+    {
+      name: 'Neon Canopy', style: 'Clarinet, mellow horns & driving pulse', bpm: 126, swing: 0.5, bars: 8, leadKind: 'clarinet', hornKind: 'mellow',
+      drums: { kick: 'x...x...x...x...|x...x...x...x...', snare: '', clap: '....x.......x...|....x.......x...', hat: 'x...x...x...x...|x...x...x...x..g', ohat: '..x...x...x...x.|..x...x...x...x.' },
+      feel: { kickOff: [0], snareOff: 4, hatOff: 0, humanize: 2 },
+      bus: { drumLP: 12000, musicLP: 7200, grit: 0.1, crackle: 0, verb: 0.11, drums: 1.12, music: 0.92, bass: 0.8 },
+      // Bass answers each kick; the upper voices carry the changing chord colors.
+      bass: { kind: 'sub', notes: [
+        [0, 2, 'F1', 1.5], [0, 6, 'F1', 1.5], [0, 10, 'C2', 1.5], [0, 14, 'F1', 1.5],
+        [1, 2, 'F1', 1.5], [1, 6, 'Ab1', 1.5], [1, 10, 'C2', 1.5], [1, 14, 'Eb2', 1], [1, 15, 'C2', 1],
+        [2, 2, 'Db2', 1.5], [2, 6, 'Db2', 1.5], [2, 10, 'Ab1', 1.5], [2, 14, 'Db2', 1.5],
+        [3, 2, 'Db2', 1.5], [3, 6, 'Ab1', 1.5], [3, 10, 'C2', 1.5], [3, 14, 'Eb2', 1.5],
+        [4, 2, 'Ab1', 1.5], [4, 6, 'Ab1', 1.5], [4, 10, 'Eb2', 1.5], [4, 14, 'Ab1', 1.5],
+        [5, 2, 'Ab1', 1.5], [5, 6, 'C2', 1.5], [5, 10, 'Eb2', 1.5], [5, 14, 'Bb1', 1], [5, 15, 'Ab1', 1],
+        [6, 2, 'Eb2', 1.5], [6, 6, 'Eb2', 1.5], [6, 10, 'Bb1', 1.5], [6, 14, 'Eb2', 1.5],
+        [7, 2, 'Eb2', 1.5], [7, 6, 'Bb1', 1.5], [7, 10, 'G1', 1.5], [7, 14, 'C2', 1.5] ] },
+      keys: { kind: 'rhodes', warm: true, notes: [
+        [0, 1, ch('Ab3', 'C4', 'Eb4', 'G4'), 8], [0, 11, ch('C4', 'Eb4', 'G4'), 3],
+        [1, 1, ch('Ab3', 'C4', 'Eb4', 'G4'), 6], [1, 10, ch('C4', 'Eb4', 'G4'), 4],
+        [2, 1, ch('Ab3', 'C4', 'Eb4', 'F4'), 8], [2, 11, ch('C4', 'Eb4', 'F4'), 3],
+        [3, 1, ch('Ab3', 'C4', 'Eb4', 'F4'), 6], [3, 10, ch('C4', 'Eb4', 'F4'), 4],
+        [4, 1, ch('Bb3', 'C4', 'Eb4', 'G4'), 8], [4, 11, ch('C4', 'Eb4', 'G4'), 3],
+        [5, 1, ch('Bb3', 'C4', 'Eb4', 'G4'), 6], [5, 10, ch('C4', 'Eb4', 'G4'), 4],
+        [6, 1, ch('G3', 'C4', 'F4', 'Bb4'), 8], [6, 11, ch('C4', 'F4', 'Bb4'), 3],
+        [7, 1, ch('G3', 'C4', 'F4', 'Bb4'), 6], [7, 10, ch('C4', 'F4', 'Bb4'), 4] ] },
+      lead: [
+        [0, 3, 'C4', 2], [0, 7, 'Eb4', 3], [0, 13, 'G4', 2],
+        [1, 5, 'F4', 3], [1, 11, 'Eb4', 3],
+        [2, 3, 'C4', 2], [2, 7, 'Eb4', 3], [2, 13, 'F4', 2],
+        [3, 5, 'Eb4', 3], [3, 11, 'C4', 3],
+        [4, 3, 'C4', 2], [4, 7, 'Eb4', 3], [4, 13, 'G4', 2],
+        [5, 5, 'Eb4', 3], [5, 11, 'C4', 3],
+        [6, 3, 'Bb3', 2], [6, 7, 'C4', 3], [6, 13, 'F4', 2],
+        [7, 5, 'Eb4', 3], [7, 12, 'G3', 3] ],
+      // A small brass section: low cushions and upper trumpet answers leave the reed room to speak.
+      horn: [
+        [0, 0, ch('Ab3', 'C4', 'Eb4'), 1.25], [0, 10, ch('C5'), 2],
+        [1, 1, ch('Ab4'), 2], [1, 9, ch('C4', 'Eb4'), 1.25], [1, 14, ch('G4'), 1.5],
+        [2, 0, ch('Ab3', 'C4', 'F4'), 1.25], [2, 10, ch('Eb5'), 2],
+        [3, 1, ch('C5'), 2], [3, 9, ch('Ab3', 'F4'), 1.25],
+        [4, 0, ch('C4', 'Eb4', 'G4'), 1.25], [4, 10, ch('Bb4'), 2],
+        [5, 1, ch('G4'), 2], [5, 9, ch('C4', 'Eb4'), 1.25], [5, 14, ch('Eb5'), 1.5],
+        [6, 0, ch('G3', 'C4', 'F4'), 1.25], [6, 10, ch('Bb4'), 2],
+        [7, 1, ch('G4'), 2], [7, 9, ch('Bb3', 'C4', 'F4'), 1.25] ]
     }
   ];
 
-  var beats = { on: false, idx: -1, built: false, timer: null, step: 0, nextT: 0, bars: 4, lastLead: null };
+  var beats = { on: false, paused: false, idx: -1, built: false, timer: null, step: 0, nextT: 0, bars: 4, lastLead: null, volume: 1 };
   var bx = {};   // the studio's nodes
 
   function beatBuild() {
@@ -3816,25 +3869,32 @@ void main() {
     var ac = music.actx;
     bx.master = ac.createGain(); bx.master.gain.value = 0.8;
     bx.comp = ac.createDynamicsCompressor();
-    bx.comp.threshold.value = -18; bx.comp.knee.value = 12; bx.comp.ratio.value = 3; bx.comp.attack.value = 0.004; bx.comp.release.value = 0.18;
+    bx.comp.threshold.value = -13; bx.comp.knee.value = 8; bx.comp.ratio.value = 2.2; bx.comp.attack.value = 0.018; bx.comp.release.value = 0.14;
     bx.out = ac.createGain(); bx.out.gain.value = 0.55;   // the compressor adds make-up gain; this takes it back
     bx.master.connect(bx.comp); bx.comp.connect(bx.out);
     bx.out.connect(music.analyser);
     bx.out.connect(ac.destination);
     // drums: through a tone filter and a touch of grit
     bx.drumLP = ac.createBiquadFilter(); bx.drumLP.type = 'lowpass'; bx.drumLP.Q.value = 0.5;
-    bx.drumShape = ac.createWaveShaper(); bx.drumShape.curve = softCurve(0.2);
+    bx.drumShape = ac.createWaveShaper(); bx.drumShape.curve = softCurve(0.2); bx.drumShape.oversample = '2x';
     bx.drums = ac.createGain(); bx.drums.gain.value = 1;
     bx.drums.connect(bx.drumLP); bx.drumLP.connect(bx.drumShape); bx.drumShape.connect(bx.master);
-    // music: a warmer filter
+    // Keep chord roots and room wash out of the bass lane.
+    bx.musicHP = ac.createBiquadFilter(); bx.musicHP.type = 'highpass'; bx.musicHP.frequency.value = 140; bx.musicHP.Q.value = 0.7;
+    bx.musicBody = ac.createBiquadFilter(); bx.musicBody.type = 'peaking'; bx.musicBody.frequency.value = 340; bx.musicBody.Q.value = 0.8; bx.musicBody.gain.value = -2.5;
     bx.musicLP = ac.createBiquadFilter(); bx.musicLP.type = 'lowpass'; bx.musicLP.Q.value = 0.7;
     bx.music = ac.createGain(); bx.music.gain.value = 0.9;
-    bx.music.connect(bx.musicLP); bx.musicLP.connect(bx.master);
+    bx.music.connect(bx.musicHP); bx.musicHP.connect(bx.musicBody); bx.musicBody.connect(bx.musicLP); bx.musicLP.connect(bx.master);
+    bx.bass = ac.createGain(); bx.bass.gain.value = 1;
+    bx.bassHP = ac.createBiquadFilter(); bx.bassHP.type = 'highpass'; bx.bassHP.frequency.value = 27; bx.bassHP.Q.value = 0.7;
+    bx.bass.connect(bx.bassHP); bx.bassHP.connect(bx.master);
     // a short room, from a noise burst that decays
-    bx.verb = ac.createConvolver(); bx.verb.buffer = impulse(ac, 1.1, 2.6);
+    bx.verb = ac.createConvolver(); bx.verb.buffer = impulse(ac, 0.65, 3.2);
     bx.verbGain = ac.createGain(); bx.verbGain.gain.value = 0.1;
-    bx.verbSend = ac.createGain(); bx.verbSend.gain.value = 1;
-    bx.verbSend.connect(bx.verb); bx.verb.connect(bx.verbGain); bx.verbGain.connect(bx.master);
+    bx.verbSend = ac.createGain(); bx.verbSend.gain.value = 0.5;
+    bx.verbHP = ac.createBiquadFilter(); bx.verbHP.type = 'highpass'; bx.verbHP.frequency.value = 400; bx.verbHP.Q.value = 0.7;
+    bx.verbLP = ac.createBiquadFilter(); bx.verbLP.type = 'lowpass'; bx.verbLP.frequency.value = 5000; bx.verbLP.Q.value = 0.7;
+    bx.verbSend.connect(bx.verbHP); bx.verbHP.connect(bx.verb); bx.verb.connect(bx.verbLP); bx.verbLP.connect(bx.verbGain); bx.verbGain.connect(bx.master);
     // vinyl crackle, looped
     bx.crackleGain = ac.createGain(); bx.crackleGain.gain.value = 0;
     bx.crackleGain.connect(bx.master);
@@ -3842,8 +3902,9 @@ void main() {
     beats.built = true;
   }
   function softCurve(amount) {
-    var n = 1024, c = new Float32Array(n), k = amount * 40 + 1;
-    for (var i = 0; i < n; i++) { var x = i * 2 / n - 1; c[i] = (1 + k) * x / (1 + k * Math.abs(x)); }
+    // Unity small-signal gain: grit rounds peaks without turning quiet tails up.
+    var n = 1025, c = new Float32Array(n), k = amount * 2;
+    for (var i = 0; i < n; i++) { var x = i * 2 / (n - 1) - 1; c[i] = x / (1 + k * Math.abs(x)); }
     return c;
   }
   function noiseBuffer(ac, secs) {
@@ -3882,10 +3943,10 @@ void main() {
   function kick(t, vel, B) {
     var ac = music.actx, o = ac.createOscillator(), g = ac.createGain();
     o.type = 'sine';
-    var lo = B.bus.drumLP < 5000 ? 42 : 48;
-    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(lo, t + 0.07);
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.85 * vel, t + 0.004);
-    g.gain.setTargetAtTime(0.0001, t + 0.05, 0.14);
+    var lo = B.bus.drumLP < 8000 ? 46 : 52;
+    o.frequency.setValueAtTime(155, t); o.frequency.exponentialRampToValueAtTime(lo, t + 0.045);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.84 * vel, t + 0.003);
+    g.gain.setTargetAtTime(0.0001, t + 0.025, 0.085);
     o.connect(g); g.connect(bx.drums);
     // the click
     var n = ac.createBufferSource(), ng = ac.createGain(), hp = ac.createBiquadFilter();
@@ -3896,13 +3957,13 @@ void main() {
   }
   function snare(t, vel, B) {
     var ac = music.actx, n = ac.createBufferSource(), g = ac.createGain(), bp = ac.createBiquadFilter();
-    n.buffer = bx.noise; bp.type = 'bandpass'; bp.frequency.value = B.bus.drumLP < 5000 ? 1600 : 2600; bp.Q.value = 0.6;
+    n.buffer = bx.noise; bp.type = 'bandpass'; bp.frequency.value = B.bus.drumLP < 8000 ? 2200 : 2900; bp.Q.value = 0.6;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.75 * vel, t + 0.003);
-    g.gain.setTargetAtTime(0.0001, t + 0.01, 0.07);
+    g.gain.setTargetAtTime(0.0001, t + 0.01, 0.055);
     n.connect(bp); bp.connect(g); g.connect(bx.drums); g.connect(bx.verbSend);
     var o = ac.createOscillator(), og = ac.createGain();
-    o.type = 'triangle'; o.frequency.setValueAtTime(B.bus.drumLP < 5000 ? 170 : 205, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.05);
-    og.gain.setValueAtTime(0.45 * vel, t); og.gain.setTargetAtTime(0.0001, t + 0.01, 0.045);
+    o.type = 'triangle'; o.frequency.setValueAtTime(B.bus.drumLP < 8000 ? 180 : 215, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.04);
+    og.gain.setValueAtTime(0.3 * vel, t); og.gain.setTargetAtTime(0.0001, t + 0.01, 0.035);
     o.connect(og); og.connect(bx.drums);
     n.start(t); n.stop(t + 0.5); o.start(t); o.stop(t + 0.3);
   }
@@ -3920,30 +3981,30 @@ void main() {
   }
   function hat(t, vel, open) {
     var ac = music.actx, n = ac.createBufferSource(), g = ac.createGain(), hp = ac.createBiquadFilter();
-    n.buffer = bx.noise; hp.type = 'highpass'; hp.frequency.value = 7000;
+    n.buffer = bx.noise; hp.type = 'highpass'; hp.frequency.value = 5200;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35 * vel, t + 0.002);
-    g.gain.setTargetAtTime(0.0001, t + 0.003, open ? 0.12 : 0.025);
+    g.gain.setTargetAtTime(0.0001, t + 0.003, open ? 0.085 : 0.018);
     n.connect(hp); hp.connect(g); g.connect(bx.drums);
     n.start(t); n.stop(t + (open ? 0.7 : 0.2));
   }
   function bass(t, midi, dur, kind) {
     var ac = music.actx, f = hz(midi), g = ac.createGain(), lp = ac.createBiquadFilter();
-    lp.type = 'lowpass'; lp.Q.value = kind === 'moog' ? 6 : 1;
+    lp.type = 'lowpass'; lp.Q.value = kind === 'moog' ? 1.8 : 0.7;
     var o = ac.createOscillator(), o2 = ac.createOscillator();
     if (kind === 'moog') {
-      o.type = 'sawtooth'; o2.type = 'square'; o2.detune.value = -1200;
-      lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(140, t + 0.25);
+      o.type = 'sawtooth'; o2.type = 'sine';
+      lp.frequency.setValueAtTime(750, t); lp.frequency.exponentialRampToValueAtTime(220, t + 0.18);
     } else {
-      o.type = 'sine'; o2.type = 'triangle'; o2.detune.value = 3;
-      lp.frequency.value = 320;
+      o.type = 'sine'; o2.type = 'triangle'; o2.detune.value = 1200;
+      lp.frequency.value = 520;
     }
     o.frequency.value = f; o2.frequency.value = f;
-    var g2 = ac.createGain(); g2.gain.value = kind === 'moog' ? 0.5 : 0.35;
-    var bl = kind === 'moog' ? 0.27 : 0.27;
+    var g2 = ac.createGain(); g2.gain.value = kind === 'moog' ? 0.3 : 0.24;
+    var bl = kind === 'moog' ? 0.3 : 0.34;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(bl, t + 0.012);
-    g.gain.setValueAtTime(bl, t + dur - 0.03);
-    g.gain.setTargetAtTime(0.0001, t + dur - 0.03, 0.03);
-    o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(bx.music);
+    g.gain.setValueAtTime(bl, t + dur - 0.045);
+    g.gain.setTargetAtTime(0.0001, t + dur - 0.045, 0.022);
+    o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(bx.bass);
     o.start(t); o2.start(t); o.stop(t + dur + 0.2); o2.stop(t + dur + 0.2);
   }
   function rhodes(t, midis, dur, warm) {
@@ -3951,21 +4012,23 @@ void main() {
     midis.forEach(function (m, i) {
       var f = hz(m), g = ac.createGain(), o = ac.createOscillator(), o2 = ac.createOscillator(), g2 = ac.createGain();
       o.type = 'sine'; o.frequency.value = f; o.detune.value = (i % 2 ? 4 : -4);
-      o2.type = 'sine'; o2.frequency.value = f * 2; g2.gain.value = warm ? 0.12 : 0.22;
-      var trem = ac.createOscillator(), tg = ac.createGain(); trem.frequency.value = 4.2; tg.gain.value = 0.12;
-      trem.connect(tg); tg.connect(g.gain);
-      var peak = 0.75 / Math.sqrt(midis.length);
+      o2.type = 'sine'; o2.frequency.value = f * 2; g2.gain.value = warm ? 0.24 : 0.32;
+      var trem = ac.createOscillator(), tg = ac.createGain(), tremGain = ac.createGain();
+      trem.frequency.value = 4.2; tg.gain.value = 0.12; tremGain.gain.value = 0.88;
+      // Tremolo multiplies the envelope; it must not keep released notes ringing.
+      trem.connect(tg); tg.connect(tremGain.gain);
+      var peak = 0.72 / Math.sqrt(midis.length);
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.015);
       g.gain.setTargetAtTime(peak * 0.55, t + 0.015, 0.5);
-      g.gain.setTargetAtTime(0.0001, t + dur, 0.12);
-      o.connect(g); o2.connect(g2); g2.connect(g); g.connect(bx.music); g.connect(bx.verbSend);
+      g.gain.setTargetAtTime(0.0001, t + dur, 0.09);
+      o.connect(g); o2.connect(g2); g2.connect(g); g.connect(tremGain); tremGain.connect(bx.music); tremGain.connect(bx.verbSend);
       o.start(t); o2.start(t); trem.start(t); o.stop(t + dur + 0.8); o2.stop(t + dur + 0.8); trem.stop(t + dur + 0.8);
     });
   }
   function stab(t, midis, dur, clean) {
     var ac = music.actx, g = ac.createGain(), bp = ac.createBiquadFilter(), sh = ac.createWaveShaper();
-    bp.type = clean ? 'lowpass' : 'bandpass'; bp.frequency.value = clean ? 2600 : 1100; bp.Q.value = clean ? 0.8 : 1.6;
-    sh.curve = softCurve(clean ? 0.05 : 0.6);
+    bp.type = clean ? 'lowpass' : 'bandpass'; bp.frequency.value = clean ? 2600 : 950; bp.Q.value = clean ? 0.8 : 0.85;
+    sh.curve = softCurve(clean ? 0.05 : 0.3); sh.oversample = '2x';
     midis.forEach(function (m, i) {
       var o = ac.createOscillator(), o2 = ac.createOscillator(), og = ac.createGain();
       o.type = clean ? 'triangle' : 'sawtooth'; o.frequency.value = hz(m); o.detune.value = i % 2 ? 6 : -6;
@@ -3973,11 +4036,12 @@ void main() {
       o.connect(bp); o2.connect(og); og.connect(bp);
       o.start(t); o2.start(t); o.stop(t + dur + 0.3); o2.stop(t + dur + 0.3);
     });
-    var peak = (clean ? 0.85 : 1.05) / Math.sqrt(midis.length);
+    var peak = (clean ? 0.55 : 1) / Math.sqrt(midis.length);
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.006);
     g.gain.setTargetAtTime(peak * 0.4, t + 0.006, clean ? 0.12 : 0.08);
     g.gain.setTargetAtTime(0.0001, t + dur, 0.05);
-    bp.connect(sh); sh.connect(g); g.connect(bx.music); if (clean) g.connect(bx.verbSend);
+    // Shape the already-enveloped chord so summed oscillators cannot overload the shaper.
+    bp.connect(g); g.connect(sh); sh.connect(bx.music); if (clean) sh.connect(bx.verbSend);
   }
   function strings(t, midis, dur) {
     var ac = music.actx, g = ac.createGain(), lp = ac.createBiquadFilter();
@@ -3989,7 +4053,7 @@ void main() {
         vg.connect(o.detune); o.connect(lp); o.start(t); o.stop(t + dur + 1.0);
       });
     });
-    var peak = 0.32 / Math.sqrt(midis.length);
+    var peak = 0.2 / Math.sqrt(midis.length);
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.45);
     g.gain.setValueAtTime(peak, t + dur - 0.3); g.gain.setTargetAtTime(0.0001, t + dur - 0.3, 0.35);
     lp.connect(g); g.connect(bx.music); g.connect(bx.verbSend);
@@ -4005,8 +4069,8 @@ void main() {
       o.connect(lp); o2.connect(g2); g2.connect(lp);
       o.start(t); o2.start(t); o.stop(t + 2.2); o2.stop(t + 2.2);
     });
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.8, t + 0.005);
-    g.gain.setTargetAtTime(0.0001, t + 0.03, Math.max(0.25, dur * 0.6));
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.46, t + 0.005);
+    g.gain.setTargetAtTime(0.0001, t + 0.03, Math.max(0.18, dur * 0.4));
     lp.connect(g); g.connect(bx.music); g.connect(bx.verbSend);
   }
   function lead(t, midi, dur, glide) {
@@ -4019,28 +4083,50 @@ void main() {
     o2.frequency.setValueAtTime(from, t); o2.frequency.exponentialRampToValueAtTime(f, t + 0.09);
     var vib = ac.createOscillator(), vg = ac.createGain(); vib.frequency.value = 5.6; vg.gain.value = 9;
     vib.connect(vg); vg.connect(o.detune); vg.connect(o2.detune);
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.45, t + 0.03);
-    g.gain.setValueAtTime(0.45, t + dur - 0.06); g.gain.setTargetAtTime(0.0001, t + dur - 0.06, 0.05);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.3, t + 0.03);
+    g.gain.setValueAtTime(0.3, t + dur - 0.06); g.gain.setTargetAtTime(0.0001, t + dur - 0.06, 0.05);
     o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(bx.music); g.connect(bx.verbSend);
     o.start(t); o2.start(t); vib.start(t); o.stop(t + dur + 0.3); o2.stop(t + dur + 0.3); vib.stop(t + dur + 0.3);
     beats.lastLead = midi;
   }
-  function horn(t, midis, dur) {
+  function clarinet(t, midi, dur) {
+    var ac = music.actx, f = hz(midi), o = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter();
+    // A rounded reed tone, led by odd harmonics; no pitch scoop or continuous vibrato.
+    if (!bx.clarinetWave) bx.clarinetWave = ac.createPeriodicWave(new Float32Array(8), new Float32Array([0, 1, 0.04, 0.42, 0.02, 0.14, 0.01, 0.05]));
+    o.setPeriodicWave(bx.clarinetWave); o.frequency.value = f;
+    lp.type = 'lowpass'; lp.frequency.value = Math.min(2600, f * 6); lp.Q.value = 0.5;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.18, t + 0.028);
+    g.gain.setTargetAtTime(0.145, t + 0.028, 0.06);
+    g.gain.setTargetAtTime(0, t + dur, 0.045);
+    g.gain.setValueAtTime(0, t + dur + 0.3);
+    o.connect(lp); lp.connect(g); g.connect(bx.music); g.connect(bx.verbSend);
+    // A very quiet breath layer shares the note envelope and release.
+    var breath = ac.createBufferSource(), breathHP = ac.createBiquadFilter(), breathGain = ac.createGain();
+    breath.buffer = bx.noise; breathHP.type = 'highpass'; breathHP.frequency.value = 1200; breathGain.gain.value = 0.012;
+    breath.connect(breathHP); breathHP.connect(breathGain); breathGain.connect(lp);
+    o.start(t); breath.start(t); o.stop(t + dur + 0.3); breath.stop(t + dur + 0.3);
+  }
+  function horn(t, midis, dur, kind) {
     var ac = music.actx, g = ac.createGain(), bp = ac.createBiquadFilter(), lp = ac.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 1.4;
-    lp.type = 'lowpass'; lp.frequency.value = 3800;
+    var mellow = kind === 'mellow';
+    bp.type = 'bandpass'; bp.frequency.value = mellow ? 1150 : 1450; bp.Q.value = mellow ? 0.65 : 0.9;
+    lp.type = 'lowpass'; lp.frequency.value = mellow ? 2600 : 3800;
     midis.forEach(function (m) {
       var o = ac.createOscillator(), o2 = ac.createOscillator(), g2 = ac.createGain();
-      o.type = 'sawtooth'; o2.type = 'square'; g2.gain.value = 0.3;
-      o.frequency.setValueAtTime(hz(m) * 0.89, t); o.frequency.exponentialRampToValueAtTime(hz(m), t + 0.07);
-      o2.frequency.setValueAtTime(hz(m) * 0.89, t); o2.frequency.exponentialRampToValueAtTime(hz(m), t + 0.07);
+      o.type = 'sawtooth'; o2.type = 'square'; g2.gain.value = mellow ? 0.12 : 0.3;
+      if (mellow) {
+        o.frequency.value = hz(m); o2.frequency.value = hz(m);
+      } else {
+        o.frequency.setValueAtTime(hz(m) * 0.89, t); o.frequency.exponentialRampToValueAtTime(hz(m), t + 0.07);
+        o2.frequency.setValueAtTime(hz(m) * 0.89, t); o2.frequency.exponentialRampToValueAtTime(hz(m), t + 0.07);
+      }
       o.connect(bp); o2.connect(g2); g2.connect(bp);
-      o.start(t); o2.start(t); o.stop(t + dur + 0.4); o2.stop(t + dur + 0.4);
+      o.start(t); o2.start(t); o.stop(t + dur + (mellow ? 0.24 : 0.4)); o2.stop(t + dur + (mellow ? 0.24 : 0.4));
     });
-    var peak = 1.0 / Math.sqrt(midis.length);
+    var peak = (mellow ? 0.32 : 0.65) / Math.sqrt(midis.length);
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.02);
-    g.gain.setTargetAtTime(peak * 0.5, t + 0.02, 0.18);
-    g.gain.setTargetAtTime(0.0001, t + dur, 0.09);
+    g.gain.setTargetAtTime(peak * (mellow ? 0.6 : 0.5), t + 0.02, mellow ? 0.055 : 0.18);
+    g.gain.setTargetAtTime(0.0001, t + dur, mellow ? 0.045 : 0.09);
     bp.connect(lp); lp.connect(g); g.connect(bx.music); g.connect(bx.verbSend);
   }
   function scratch(t) {
@@ -4053,7 +4139,7 @@ void main() {
     n.start(t); n.stop(t + 0.2);
   }
 
-  // ---- the scheduler: a bar is 16 steps; drum strings are two bars that repeat; the music is four ----
+  // ---- the scheduler: a bar is 16 steps; drums repeat every two bars; music follows the track's phrase ----
   function pat(s) { return (s || '').replace(/[|\s]/g, ''); }
   function vel(ch) { return ch === 'x' ? 1 : ch === 'g' ? 0.45 : ch === 'o' ? 1 : 0; }
   function scheduleStep(step, t0) {
@@ -4078,10 +4164,13 @@ void main() {
       if (B.keys.kind === 'rhodes') rhodes(t, e[2], e[3] * st, !!B.keys.warm);
       else stab(t, e[2], e[3] * st, !!B.keys.clean);
     });
-    at(B.lead, function (e) { lead(t, N(e[2]), e[3] * st, e[4]); });
+    at(B.lead, function (e) {
+      if (B.leadKind === 'clarinet') clarinet(t, N(e[2]), e[3] * st);
+      else lead(t, N(e[2]), e[3] * st, e[4]);
+    });
     at(B.piano, function (e) { piano(t + (Math.random() - 0.5) * hum, N(e[2]), e[3] * st); });
     at(B.strings, function (e) { strings(t, e[2], e[3] * st); });
-    at(B.horn, function (e) { horn(t, e[2], e[3] * st); });
+    at(B.horn, function (e) { horn(t, e[2], e[3] * st, B.hornKind); });
     at(B.scratch, function (e) { scratch(t); });
   }
   function beatTick() {
@@ -4095,12 +4184,21 @@ void main() {
   function startBeat(i) {
     if (!ensureCtx()) { say('Audio is not available in this browser.'); return; }
     stopMusic();
+    beats.idx = i; beats.step = 0; beats.lastLead = null;
+    runBeat();
+  }
+  function runBeat() {
     beatBuild();
-    var B = BEATS[i];
-    beats.idx = i; beats.on = true; beats.step = 0; beats.lastLead = null;
+    var B = BEATS[beats.idx];
+    beats.bars = B.bars || 4;
+    beats.on = true; beats.paused = false;
     beats.nextT = music.actx.currentTime + 0.08;
+    bx.out.gain.value = 0.55 * beats.volume;
     bx.drumLP.frequency.value = B.bus.drumLP;
     bx.musicLP.frequency.value = B.bus.musicLP;
+    bx.drums.gain.value = B.bus.drums;
+    bx.music.gain.value = B.bus.music;
+    bx.bass.gain.value = B.bus.bass;
     bx.drumShape.curve = softCurve(B.bus.grit);
     bx.verbGain.gain.value = B.bus.verb;
     crackleStart();
@@ -4108,14 +4206,35 @@ void main() {
     beatTick();
     setMusicOn(true, 'beat');
     syncBeatChips();
-    say('Playing ' + B.name + ', after ' + B.after);
+    say('Playing ' + B.name + ' — ' + B.style);
   }
-  function stopBeat() {
-    if (!beats.on) return;
-    beats.on = false;
+  function silenceBeat() {
     clearInterval(beats.timer); beats.timer = null;
     if (bx.crackle) { try { bx.crackle.stop(); } catch (e) {} bx.crackle = null; }
-    beats.idx = -1;
+    // Retire this graph so queued notes and reverb cannot return on the next start.
+    if (bx.out) { bx.out.gain.value = 0; bx.out.disconnect(); }
+    beats.built = false; bx = {};
+  }
+  function pauseBeat() {
+    if (!beats.on) return;
+    silenceBeat();
+    beats.on = false; beats.paused = true;
+    setMusicOn(false);
+    syncBeatChips();
+  }
+  function resumeBeat() {
+    if (!beats.paused || !ensureCtx()) return;
+    runBeat();
+  }
+  function setBeatVolume(volume) {
+    beats.volume = Math.max(0, Math.min(1, volume));
+    if (bx.out) bx.out.gain.value = beats.on ? 0.55 * beats.volume : 0;
+  }
+  function stopBeat() {
+    if (!beats.on && !beats.paused) return;
+    silenceBeat();
+    beats.on = false; beats.paused = false; beats.idx = -1;
+    beats.step = 0; beats.nextT = 0; beats.lastLead = null;
     syncBeatChips();
   }
   function syncBeatChips() {
@@ -4124,7 +4243,7 @@ void main() {
   }
   BEATS.forEach(function (B, i) {
     var b = document.createElement('button');
-    b.type = 'button'; b.className = 'chip'; b.textContent = B.name; b.title = 'After ' + B.after;
+    b.type = 'button'; b.className = 'chip'; b.textContent = B.name; b.title = B.style;
     b.setAttribute('aria-pressed', 'false');
     b.addEventListener('click', function () { if (beats.on && beats.idx === i) { stopMusic(); } else startBeat(i); });
     $('beatChips').appendChild(b);
@@ -4273,6 +4392,63 @@ function createCurrent(w, h) {
   sim.clear();
   return sim;
 }
+  var gardenSongStore = (function () {
+    var database;
+
+    function open() {
+      if (!database) database = new Promise(function (resolve, reject) {
+        if (typeof indexedDB === 'undefined') {
+          reject(new Error('Song storage is unavailable in this browser.'));
+          return;
+        }
+        var request = indexedDB.open('garden-song-library', 1);
+        request.onupgradeneeded = function () {
+          request.result.createObjectStore('songs', { keyPath: 'id' });
+        };
+        request.onerror = function () { reject(request.error); };
+        request.onsuccess = function () {
+          var db = request.result;
+          db.onversionchange = function () { db.close(); database = null; };
+          resolve(db);
+        };
+      });
+      return database;
+    }
+
+    function run(mode, operation) {
+      return open().then(function (db) {
+        return new Promise(function (resolve, reject) {
+          var transaction = db.transaction('songs', mode);
+          var request = operation(transaction.objectStore('songs'));
+          request.onerror = function () { reject(request.error); };
+          transaction.onerror = function () { reject(transaction.error || request.error); };
+          transaction.onabort = function () {
+            reject(transaction.error || new DOMException('Song storage transaction aborted.', 'AbortError'));
+          };
+          transaction.oncomplete = function () {
+            resolve(mode === 'readonly' ? request.result : undefined);
+          };
+        });
+      });
+    }
+
+    return {
+      load: function () {
+        return run('readonly', function (store) { return store.getAll(); }).then(function (records) {
+          return records.map(function (record) { return { filename: record.filename, blob: record.blob }; });
+        });
+      },
+      put: function (file) {
+        return run('readwrite', function (store) {
+          return store.put({ id: file.name.toLowerCase(), filename: file.name, blob: file });
+        });
+      },
+      remove: function (filename) {
+        return run('readwrite', function (store) { return store.delete(filename.toLowerCase()); });
+      }
+    };
+  })();
+
 // Installed inside the application's closure, immediately before initial setup.
 // Reuses the existing simulation, source picker and AudioContext; no second audio output.
 (function installGardenUpdate() {
@@ -4324,76 +4500,268 @@ function createCurrent(w, h) {
   stage.insertAdjacentHTML('beforeend', '<svg class="garden-vine vine-left" viewBox="0 0 180 640" aria-hidden="true"><defs><linearGradient id="gardenLeaf" x2="1" y2="1"><stop stop-color="#9dc490"/><stop offset="1" stop-color="#426a51"/></linearGradient></defs><path class="stem" d="M85 630 C43 533 124 451 85 361 S33 208 99 16"/><path class="leaf" d="M78 502 C109 480 121 454 120 428 C94 437 75 463 69 487 Z"/><path class="leaf ochre" d="M72 353 C43 333 28 306 32 280 C60 291 77 319 81 342 Z"/><path class="leaf" d="M76 211 C108 191 124 162 120 139 C94 147 73 176 68 200 Z"/><path class="leaf plum" d="M89 82 C62 65 54 41 58 20 C79 34 90 51 95 73 Z"/></svg><svg class="garden-vine vine-right" viewBox="0 0 180 460" aria-hidden="true"><path class="stem" d="M78 8 C123 88 64 188 103 263 S111 391 75 452"/><path class="leaf ochre" d="M91 132 C64 113 48 85 50 60 C77 68 94 99 99 121 Z"/><path class="leaf" d="M92 259 C120 242 136 216 133 192 C104 205 90 228 84 247 Z"/><path class="leaf plum" d="M105 359 C77 342 66 319 70 298 C93 309 107 333 112 350 Z"/></svg>');
 
   var tracks = [
-    ['Liquid Bloom', 'Liquid_Bloom.mp3', '96 BPM · Late-night electronic hip-hop'],
-    ['Mycelium Dream · Violin', 'Mycelium_Dream_Violin.mp3', '104 BPM · Psychedelic dub'],
-    ['Prism Orchard', 'Prism_Orchard.mp3', '108 BPM · Xylophone-led groove'],
-    ['Neon Thistle', 'Neon_Thistle.mp3', '116 BPM · Bagpipe electro-funk'],
-    ['Velvet Circuit', 'Velvet_Circuit.mp3', '112 BPM · Psychedelic guitar funk']
-  ];
+    { name: 'Liquid Bloom', file: 'Liquid_Bloom.mp3', detail: '96 BPM · Late-night electronic hip-hop' },
+    { name: 'Mycelium Dream · Violin', file: 'Mycelium_Dream_Violin.mp3', detail: '104 BPM · Psychedelic dub' },
+    { name: 'Prism Orchard', file: 'Prism_Orchard.mp3', detail: '108 BPM · Xylophone-led groove' },
+    { name: 'Neon Thistle', file: 'Neon_Thistle.mp3', detail: '116 BPM · Bagpipe electro-funk' },
+    { name: 'Velvet Circuit', file: 'Velvet_Circuit.mp3', detail: '112 BPM · Psychedelic guitar funk' }
+  ].concat(BEATS.map(function (beat, i) {
+    return { name: beat.name, beat: i, detail: beat.bpm + ' BPM · Live beat · ' + beat.style };
+  }));
   var host = document.createElement('div'); host.id = 'gardenScores'; host.className = 'group garden-scores';
-  host.innerHTML = '<h3 class="eyebrow">Garden soundtrack</h3><div class="chips" id="gardenScoreLibrary" role="group" aria-label="Garden soundtrack"></div><h2 id="gardenScoreTitle"></h2><p class="note" id="gardenScoreMeta"></p><div class="actions"><button type="button" class="act" id="gardenScorePlay">Play</button><button type="button" class="act" id="gardenScoreRestart">Restart</button><label class="score-loop"><input type="checkbox" id="gardenScoreLoop" checked> Repeat</label></div><label class="score-range">Position <input id="gardenScoreSeek" type="range" min="0" max="1000" value="0" aria-label="Track position"></label><label class="score-range">Volume <input id="gardenScoreVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Track volume"></label><p class="note" id="gardenScoreStatus" role="status"></p><button type="button" class="act" id="gardenAudioLoad">Load your recordings</button><input id="gardenAudioFiles" type="file" accept="audio/*" multiple hidden>';
+  host.innerHTML = '<h3 class="eyebrow">Garden jukebox</h3><p class="note">Songs and live beats. One continuous playlist.</p>' +
+    '<h2 id="gardenScoreTitle"></h2><p class="note" id="gardenScoreMeta"></p>' +
+    '<div class="actions jukebox-transport"><button type="button" class="act" id="gardenScorePrev" aria-label="Previous track">Previous</button><button type="button" class="act" id="gardenScorePlay" aria-pressed="false">Play</button><button type="button" class="act" id="gardenScoreNext" aria-label="Next track">Next</button></div>' +
+    '<div class="actions"><button type="button" class="act" id="gardenScoreRestart">Restart</button><button type="button" class="act" id="gardenScoreShuffle" aria-pressed="false">Shuffle</button><label class="score-loop"><input type="checkbox" id="gardenScoreLoop"> Repeat</label></div>' +
+    '<label class="score-range" id="gardenScorePosition">Position <input id="gardenScoreSeek" type="range" min="0" max="1000" value="0" aria-label="Track position"></label>' +
+    '<label class="score-range">Volume <input id="gardenScoreVolume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Track volume"></label>' +
+    '<p class="note" id="gardenScoreStatus" role="status"></p>' +
+    '<label class="jukebox-search" for="gardenSongSearch">Find a song<input id="gardenSongSearch" type="search" placeholder="Search your library…" autocomplete="off"></label>' +
+    '<div class="jukebox-index"><span id="gardenLibraryCount"></span><button type="button" class="act" id="gardenLibraryPlay" aria-pressed="false">▶ Play</button></div>' +
+    '<p class="note jukebox-browse">Drag or swipe to browse · Double-click a song to play</p>' +
+    '<div class="chips jukebox-library" id="gardenScoreLibrary" role="group" aria-label="Jukebox library"></div>' +
+    '<p class="note" id="gardenLibraryEmpty" hidden>No matching tracks. Try another search.</p>' +
+    '<div class="actions jukebox-manage"><button type="button" class="act" id="gardenAudioLoad" disabled>Add songs</button><button type="button" class="act" id="gardenSongRemove" hidden>Remove song</button></div>' +
+    '<input id="gardenAudioFiles" type="file" accept="audio/*" multiple hidden disabled>' +
+    '<p class="note" id="gardenLibraryStatus" role="status">Opening your saved library…</p>' +
+    '<p class="note jukebox-help">Live beats play for two minutes. Repeat keeps the current song or beat playing.</p>' +
+    '<p class="note">Added songs stay in this browser at this address. Adding the same filename replaces that song.</p>';
   var sound = document.querySelector('[data-pane="sound"]'); sound.insertBefore(host, sound.firstChild);
-  var selected = 0, activeSource = '', urls = new Map();
-  function source() { return urls.get(tracks[selected][1]) || 'audio/' + tracks[selected][1]; }
+  $('beats').hidden = true;
+  var selected = 0, activeSource = '', jukeboxSource = '', urls = new Map(), shuffle = false, upcoming = [], history = [];
+  var beatElapsed = 0, beatStarted = null, beatLength = 120000;
+  function isBeat() { return tracks[selected].beat !== undefined; }
+  function source() { return urls.get(tracks[selected].file) || 'audio/' + tracks[selected].file; }
+  function ownsSelection() {
+    return isBeat() ? beats.idx === tracks[selected].beat && (beats.on || beats.paused) :
+      activeSource && audio.getAttribute('src') === activeSource;
+  }
+  function playing() { return ownsSelection() && (isBeat() ? beats.on : !audio.paused && music.on && music.mode === 'song'); }
+  function elapsed() { return beatElapsed + (beatStarted === null ? 0 : performance.now() - beatStarted); }
   function clock(t) { return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'); }
   function refresh() {
-    var ours = activeSource && audio.getAttribute('src') === activeSource;
-    $('gardenScorePlay').textContent = ours && !audio.paused ? 'Pause' : 'Play';
-    $('gardenScoreSeek').value = ours && Number.isFinite(audio.duration) && audio.duration > 0 ? Math.round(audio.currentTime / audio.duration * 1000) : 0;
-    if (ours && !audio.error && Number.isFinite(audio.duration)) $('gardenScoreStatus').textContent = clock(audio.currentTime) + ' / ' + clock(audio.duration);
+    var ours = ownsSelection(), on = playing();
+    if (on && isBeat() && beatStarted === null) beatStarted = performance.now();
+    if ((!on || !isBeat()) && beatStarted !== null) { beatElapsed = elapsed(); beatStarted = null; }
+    $('gardenScorePlay').textContent = on ? 'Pause' : 'Play';
+    $('gardenScorePlay').setAttribute('aria-pressed', String(!!on));
+    $('gardenLibraryPlay').textContent = on ? 'Ⅱ Pause' : '▶ Play';
+    $('gardenLibraryPlay').setAttribute('aria-pressed', String(!!on));
+    $('gardenLibraryPlay').setAttribute('aria-label', (on ? 'Pause ' : 'Play ') + tracks[selected].name);
+    $('gardenScorePosition').hidden = isBeat();
+    $('gardenScoreSeek').disabled = isBeat();
+    $('gardenScoreSeek').value = !isBeat() && ours && Number.isFinite(audio.duration) && audio.duration > 0 ? Math.round(audio.currentTime / audio.duration * 1000) : 0;
+    // Keep ownership even when navigation leaves an older source in the media element.
+    sound.classList.toggle('jukebox-media', !!jukeboxSource && audio.getAttribute('src') === jukeboxSource);
+    if (ours && isBeat()) $('gardenScoreStatus').textContent = (on ? 'Live beat · ' : 'Paused · ') + clock(elapsed() / 1000) + ' / 2:00';
+    else if (ours && !audio.error && Number.isFinite(audio.duration)) $('gardenScoreStatus').textContent = clock(audio.currentTime) + ' / ' + clock(audio.duration);
   }
-  function choose(i) {
-    stopMusic(); selected = i; activeSource = '';
-    $('gardenScoreTitle').textContent = tracks[i][0]; $('gardenScoreMeta').textContent = tracks[i][2];
+  // External song, microphone and Stop controls also update the shared transport.
+  var originalSetMusicOn = setMusicOn;
+  setMusicOn = function (on, mode) { originalSetMusicOn(on, mode); refresh(); };
+  function showSelection(i) {
+    selected = i; activeSource = '';
+    beatElapsed = 0; beatStarted = null;
+    $('gardenScoreTitle').textContent = tracks[i].name; $('gardenScoreMeta').textContent = tracks[i].detail;
     $('gardenScoreStatus').textContent = 'Choose Play to listen.';
     Array.from($('gardenScoreLibrary').children).forEach(function (b, j) { b.setAttribute('aria-pressed', String(i === j)); });
+    $('gardenSongRemove').hidden = !tracks[i].local;
     refresh();
   }
-  function play() {
-    if (activeSource && audio.getAttribute('src') === activeSource && !audio.paused) { audio.pause(); setMusicOn(false); refresh(); return; }
+  function choose(i, autoplay) {
+    stopMusic(); showSelection(i);
+    if (autoplay) start();
+  }
+  function start() {
+    if (isBeat()) {
+      setBeatVolume(Number($('gardenScoreVolume').value));
+      if (beats.paused && beats.idx === tracks[selected].beat) resumeBeat();
+      else { beatElapsed = 0; beatStarted = null; startBeat(tracks[selected].beat); }
+      refresh(); return;
+    }
     stopMusic();
     if (audio.getAttribute('src') !== source()) { audio.src = source(); }
-    activeSource = source(); songName = tracks[selected][0];
+    activeSource = source(); jukeboxSource = activeSource; songName = tracks[selected].name;
     audio.loop = $('gardenScoreLoop').checked; audio.volume = Number($('gardenScoreVolume').value);
     startSong();
   }
-  tracks.forEach(function (track, i) {
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = track[0];
-    b.addEventListener('click', function () { choose(i); }); $('gardenScoreLibrary').appendChild(b);
-  });
-  $('gardenScorePlay').addEventListener('click', play);
-  $('gardenScoreRestart').addEventListener('click', function () { if (activeSource && audio.getAttribute('src') === activeSource) audio.currentTime = 0; else play(); });
-  $('gardenScoreSeek').addEventListener('input', function () { if (audio.getAttribute('src') === activeSource && Number.isFinite(audio.duration)) audio.currentTime = Number(this.value) / 1000 * audio.duration; });
-  $('gardenScoreVolume').addEventListener('input', function () { audio.volume = Number(this.value); });
-  $('gardenScoreLoop').addEventListener('change', function () { if (activeSource && audio.getAttribute('src') === activeSource) audio.loop = this.checked; });
-  $('gardenAudioLoad').addEventListener('click', function () { $('gardenAudioFiles').click(); });
-  $('gardenAudioFiles').addEventListener('change', function () {
-    var count = 0;
-    Array.from(this.files || []).forEach(function (file) {
-      var track = tracks.find(function (t) { return t[1].toLowerCase() === file.name.toLowerCase(); });
-      if (!track) return;
-      var old = urls.get(track[1]), url = URL.createObjectURL(file);
-      var active = activeSource && audio.getAttribute('src') === activeSource && track === tracks[selected];
-      var resume = active && !audio.paused;
-      urls.set(track[1], url); count++;
-      if (active) {
-        activeSource = url; audio.src = url;
-        if (resume) startSong(); else refresh();
+  function play() {
+    if (!playing()) { start(); return; }
+    if (isBeat()) pauseBeat();
+    else { audio.pause(); setMusicOn(false); }
+    refresh();
+  }
+  function advance(autoplay) {
+    var next = (selected + 1) % tracks.length;
+    if (shuffle) {
+      if (!upcoming.length) {
+        upcoming = tracks.map(function (_, i) { return i; }).filter(function (i) { return i !== selected; });
+        for (var j = upcoming.length - 1; j > 0; j--) {
+          var k = Math.floor(Math.random() * (j + 1)), item = upcoming[j]; upcoming[j] = upcoming[k]; upcoming[k] = item;
+        }
       }
-      if (old) URL.revokeObjectURL(old);
+      next = upcoming.pop();
+    }
+    history.push(selected); choose(next, autoplay);
+  }
+  var library = $('gardenScoreLibrary'), search = $('gardenSongSearch');
+  function filterLibrary() {
+    var query = search.value.trim().toLowerCase(), count = 0;
+    Array.from(library.children).forEach(function (b, i) {
+      b.hidden = !(tracks[i].name + ' ' + (tracks[i].file || '')).toLowerCase().includes(query);
+      if (!b.hidden) count++;
     });
-    this.value = ''; $('gardenScoreStatus').textContent = count ? count + ' recordings loaded locally.' : 'Choose recordings named after the five soundtrack tracks.';
+    $('gardenLibraryCount').textContent = (query ? count + ' of ' : '') + tracks.length + ' tracks';
+    $('gardenLibraryEmpty').hidden = count > 0;
+  }
+  function renderLibrary() {
+    library.replaceChildren();
+    tracks.forEach(function (track, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+      b.setAttribute('aria-label', track.name); b.setAttribute('aria-pressed', String(i === selected));
+      var number = document.createElement('span'); number.className = 'jukebox-number'; number.setAttribute('aria-hidden', 'true'); number.textContent = String(i + 1).padStart(2, '0');
+      var title = document.createElement('span'); title.className = 'jukebox-track'; title.textContent = track.name;
+      var kind = document.createElement('small'); kind.textContent = track.local ? 'Your song' : track.file ? 'Garden soundtrack' : 'Live beat · 2 minutes'; title.appendChild(kind);
+      b.append(number, title); b.title = track.name;
+      b.addEventListener('click', function () { var on = playing(); history = []; upcoming = []; choose(i, on); }); library.appendChild(b);
+      b.addEventListener('dblclick', function (event) { event.preventDefault(); if (!playing()) start(); });
+    });
+    filterLibrary();
+  }
+  search.addEventListener('input', function () { filterLibrary(); library.scrollTop = 0; });
+  library.addEventListener('keydown', function (event) {
+    var rows = Array.from(library.children).filter(function (b) { return !b.hidden; });
+    var index = rows.indexOf(document.activeElement), next;
+    if (event.key === 'ArrowDown') next = Math.min(index + 1, rows.length - 1);
+    else if (event.key === 'ArrowUp') next = Math.max(index - 1, 0);
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = rows.length - 1;
+    else return;
+    if (rows[next]) { event.preventDefault(); rows[next].focus(); }
+  });
+  // Touch and wheels keep native scrolling; mouse dragging never activates a row.
+  var drag = null, suppressClick = false;
+  library.addEventListener('pointerdown', function (event) {
+    suppressClick = false;
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    if (event.clientX >= library.getBoundingClientRect().left + library.clientWidth) return;
+    drag = { id: event.pointerId, y: event.clientY, top: library.scrollTop, moved: false };
+  });
+  library.addEventListener('pointermove', function (event) {
+    if (!drag || drag.id !== event.pointerId) return;
+    if (!(event.buttons & 1)) { endDrag(); return; }
+    if (!drag.moved && Math.abs(event.clientY - drag.y) > 5) {
+      drag.moved = true; suppressClick = true; library.setPointerCapture(event.pointerId); library.classList.add('dragging');
+    }
+    if (drag.moved) { event.preventDefault(); library.scrollTop = drag.top + drag.y - event.clientY; }
+  });
+  function endDrag() { drag = null; library.classList.remove('dragging'); }
+  library.addEventListener('pointerleave', function () { if (drag && !drag.moved) endDrag(); });
+  library.addEventListener('pointerup', endDrag);
+  library.addEventListener('pointercancel', function () { suppressClick = false; endDrag(); });
+  library.addEventListener('lostpointercapture', endDrag);
+  library.addEventListener('click', function (event) {
+    if (suppressClick && event.detail !== 0) { suppressClick = false; event.preventDefault(); event.stopImmediatePropagation(); }
+  }, true);
+  renderLibrary();
+  $('gardenScorePlay').addEventListener('click', play);
+  $('gardenLibraryPlay').addEventListener('click', play);
+  $('gardenScoreNext').addEventListener('click', function () { advance(playing()); });
+  $('gardenScorePrev').addEventListener('click', function () {
+    var on = playing(), previous = history.length ? history.pop() : (selected + tracks.length - 1) % tracks.length;
+    upcoming = []; choose(previous, on);
+  });
+  $('gardenScoreShuffle').addEventListener('click', function () {
+    shuffle = !shuffle; upcoming = []; this.setAttribute('aria-pressed', String(shuffle));
+  });
+  $('gardenScoreRestart').addEventListener('click', function () {
+    if (isBeat()) { choose(selected, playing()); }
+    else if (ownsSelection()) { audio.currentTime = 0; refresh(); }
+    else start();
+  });
+  $('gardenScoreSeek').addEventListener('input', function () { if (!isBeat() && ownsSelection() && Number.isFinite(audio.duration)) audio.currentTime = Number(this.value) / 1000 * audio.duration; });
+  $('gardenScoreVolume').addEventListener('input', function () { audio.volume = Number(this.value); setBeatVolume(Number(this.value)); });
+  $('gardenScoreLoop').addEventListener('change', function () { if (!isBeat() && ownsSelection()) audio.loop = this.checked; });
+  $('gardenAudioLoad').addEventListener('click', function () { $('gardenAudioFiles').click(); });
+  function libraryBusy(busy) {
+    $('gardenAudioLoad').disabled = busy; $('gardenAudioFiles').disabled = busy; $('gardenSongRemove').disabled = busy;
+  }
+  function addRecording(filename, blob) {
+    var track = tracks.find(function (t) { return t.file && t.file.toLowerCase() === filename.toLowerCase(); });
+    if (!track) {
+      track = { name: filename.replace(/\.[^.]+$/, '').replace(/_/g, ' '), file: filename, detail: 'Your library · Imported song', local: true };
+      tracks.push(track);
+    }
+    var old = urls.get(track.file), url = URL.createObjectURL(blob);
+    var active = activeSource && audio.getAttribute('src') === activeSource && track === tracks[selected];
+    var resume = active && !audio.paused;
+    urls.set(track.file, url);
+    if (active) {
+      activeSource = url; jukeboxSource = url; audio.src = url;
+      if (resume) startSong(); else refresh();
+    }
+    if (old) URL.revokeObjectURL(old);
+    return track;
+  }
+  $('gardenAudioFiles').addEventListener('change', async function () {
+    var files = Array.from(this.files || []), count = 0, saved = 0;
+    this.value = '';
+    if (!files.length) return;
+    libraryBusy(true); $('gardenLibraryStatus').textContent = 'Adding songs…';
+    for (var file of files) {
+      if (!file.type.startsWith('audio/') && !/\.(mp3|wav|ogg|oga|opus|m4a|aac|flac|aif|aiff|webm)$/i.test(file.name)) continue;
+      var track = addRecording(file.name, file); count++; upcoming = []; renderLibrary();
+      try { await gardenSongStore.put(file); track.stored = true; saved++; } catch (_) { /* Still playable for this visit. */ }
+    }
+    $('gardenLibraryStatus').textContent = !count ? 'Choose audio files to add to your library.' : saved === count ?
+      count + ' song' + (count === 1 ? '' : 's') + ' saved in this browser.' :
+      saved + ' of ' + count + ' songs saved. Could not save the rest; those changes are available for this session only.';
+    libraryBusy(false);
+  });
+  $('gardenSongRemove').addEventListener('click', async function () {
+    var track = tracks[selected];
+    if (!track.local) return;
+    libraryBusy(true);
+    if (track.stored) {
+      try { await gardenSongStore.remove(track.file); }
+      catch (_) { $('gardenLibraryStatus').textContent = 'Could not remove the saved song. Try again.'; libraryBusy(false); return; }
+    }
+    var index = tracks.indexOf(track), current = tracks[selected], removingSelected = current === track;
+    if (removingSelected && ownsSelection() && !music.micStream) stopMusic();
+    tracks.splice(index, 1); upcoming = []; history = [];
+    if (removingSelected) showSelection(Math.min(index, tracks.length - 1));
+    else selected = tracks.indexOf(current);
+    URL.revokeObjectURL(urls.get(track.file)); urls.delete(track.file); renderLibrary();
+    $('gardenLibraryStatus').textContent = 'Removed ' + track.name + ' from your library.'; libraryBusy(false);
   });
   ['play','pause','ended','timeupdate','loadedmetadata'].forEach(function (name) { audio.addEventListener(name, refresh); });
+  audio.addEventListener('ended', function () {
+    if (!isBeat() && ownsSelection() && !$('gardenScoreLoop').checked) advance(true);
+  });
+  var beatClock = setInterval(function () {
+    if (!isBeat() || !playing()) return;
+    if (elapsed() >= beatLength) {
+      if ($('gardenScoreLoop').checked) { beatElapsed = elapsed() % beatLength; beatStarted = performance.now(); }
+      else { advance(true); return; }
+    }
+    refresh();
+  }, 250);
   audio.addEventListener('error', function () {
     if (activeSource && audio.getAttribute('src') === activeSource) {
       setMusicOn(false); $('gardenScoreStatus').textContent = 'This recording could not be played. Try again or load a local recording.'; refresh();
     }
   });
   window.addEventListener('pagehide', function (event) {
-    if (!event.persisted) urls.forEach(function (url) { URL.revokeObjectURL(url); });
+    if (!event.persisted) { clearInterval(beatClock); urls.forEach(function (url) { URL.revokeObjectURL(url); }); }
   });
   choose(0);
+  gardenSongStore.load().then(function (records) {
+    records.forEach(function (record) { addRecording(record.filename, record.blob).stored = true; });
+    upcoming = []; renderLibrary();
+    $('gardenLibraryStatus').textContent = records.length ? 'Your saved songs are ready.' : 'Add songs to grow your library.';
+  }).catch(function () {
+    $('gardenLibraryStatus').textContent = 'Saved songs could not be opened. Added songs may be available for this session only.';
+  }).finally(function () { libraryBusy(false); });
 })();
 
 /* Botanical glass illustration. Mounted once; no per-frame work and no audio/physics hooks.
@@ -4468,6 +4836,7 @@ function createCurrent(w, h) {
   // the dish, the colours and the material from last time, read before anything below saves its own
   var saved = {};
   try { saved = { chem: localStorage.getItem('garden.chem'), palette: localStorage.getItem('garden.palette'), material: localStorage.getItem('garden.material') }; } catch (e) {}
+  if (saved.material === 'Fire') saved.material = 'Lava';
   function named(list, name) { for (var i = 0; i < list.length; i++) if (list[i].name === name) return i; return -1; }
   initializeRenderer();
   setPalette(named(PALETTES, saved.palette) >= 0 ? named(PALETTES, saved.palette) : state.palette);
