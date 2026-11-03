@@ -1,9 +1,19 @@
 // Protect playback when the shared CPU/GPU cannot keep up with the scene.
-// Only drawing resolution changes; simulation fields and musical time are untouched.
+// Adapt visual detail and cadence; simulation fields and musical time are untouched.
 function createAudioRenderBudget() {
-  var average = 16.7, elapsed = 0;
+  var average = 16.7, elapsed = 0, yieldFrame = false;
   return {
     scale: 1,
+    shouldRender: function (playing) {
+      if (!playing) yieldFrame = false;
+      if (!yieldFrame) return true;
+      yieldFrame = false; return false;
+    },
+    didRender: function (milliseconds, playing) {
+      // GPU submission may be fast even when drawing is overloaded (scale < 1).
+      // Leave one animation opportunity idle; never catch up skipped visual work.
+      yieldFrame = playing && (this.scale < 1 || milliseconds > 12);
+    },
     sample: function (milliseconds, playing) {
       if (!playing) { this.scale = 1; average = 16.7; elapsed = 0; return this.scale; }
       if (!Number.isFinite(milliseconds) || milliseconds <= 0 || milliseconds > 1000) return this.scale;

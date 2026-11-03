@@ -22,3 +22,22 @@ test('background gaps and invalid timestamps do not change the rendering budget'
   for (const dt of [0, -10, NaN, Infinity, 5000]) budget.sample(dt, true);
   assert.equal(budget.scale, 1);
 });
+
+test('expensive scenes yield animation opportunities during playback instead of staying continuously busy', () => {
+  const budget = createAudioRenderBudget();
+  let rendered = 0;
+  for (let frame = 0; frame < 60; frame++) {
+    if (budget.shouldRender(true)) { rendered++; budget.didRender(24, true); }
+  }
+  assert.equal(rendered, 30, 'expensive CPU work must leave alternating animation opportunities free');
+  assert.equal(budget.shouldRender(false), true, 'stopping audio must release a pending visual wait');
+  budget.didRender(2, false);
+  for (let frame = 0; frame < 60; frame++) {
+    assert.equal(budget.shouldRender(true), true, 'fast scenes retain their normal animation cadence');
+    budget.didRender(2, true);
+  }
+  for (let frame = 0; frame < 100; frame++) budget.sample(80, true);
+  budget.didRender(2, true);
+  assert.equal(budget.shouldRender(true), false, 'GPU pressure needs a pause even if command submission is quick');
+  assert.equal(budget.shouldRender(true), true, 'the next opportunity resumes without a catch-up burst');
+});

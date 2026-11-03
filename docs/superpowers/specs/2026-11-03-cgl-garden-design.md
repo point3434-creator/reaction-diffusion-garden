@@ -86,3 +86,11 @@ steps while retaining the beat grid. Request playback buffering, adapt drawing
 resolution under sustained slow frames, and preserve simulation resolution,
 recording speed, transport behavior, and mixer levels. Actual audible improvement
 on the user's output device remains a separate listening check.
+
+Follow-up listening identified Amber Flow, Voronesque Gem, and stirring as worse
+under load. A 30-second recorded-song profile with Amber Flow and stirring showed
+the rendering loop remained continuously busy even at minimum drawing resolution;
+stirring did return to sleep and observed resource counts remained bounded. Leave
+one animation opportunity free after expensive visual frames during playback,
+without catching up skipped visual work. Neon pulse decay must use elapsed time
+since the kick so reduced rendering cadence does not stretch its musical timing.

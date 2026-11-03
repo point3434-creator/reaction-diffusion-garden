@@ -53,12 +53,21 @@ test('audio headroom reduces only the drawing buffer and restores it without res
     let requested;
     window.AudioContext = new Proxy(window.AudioContext, { construct(Target, args) { requested = args[0]; return new Target(...args); } });
     a.ensureCtx();
-    return { initial, reduced, restored: canvas.width, sameSim, requested, audioState: a.music.actx.state };
+    let steps = 0;
+    sim.step = () => { steps++; };
+    a.state.paused = false;
+    a.audioRenderBudget.didRender(24, true); a.music.on = true;
+    a.frame(performance.now()); const duringWait = steps;
+    a.music.on = false; a.frame(performance.now());
+    a.state.paused = true;
+    return { initial, reduced, restored: canvas.width, sameSim, requested, audioState: a.music.actx.state, duringWait, afterWait: steps };
   });
   assert.ok(result.reduced < result.initial / 2);
   assert.equal(result.restored, result.initial); assert.equal(result.sameSim, true);
   assert.equal(result.requested.latencyHint, 'playback');
   assert.ok(['running', 'suspended'].includes(result.audioState));
+  assert.equal(result.duringWait, 0, 'a reserved audio opportunity must skip visual simulation work');
+  assert.equal(result.afterWait, 1, 'stopping music resumes one normal visual update without catch-up');
   assert.deepEqual(errors, []);
 });
 
@@ -149,6 +158,8 @@ test('shader setup failure falls back to a usable 2D canvas', async t => {
   });
   assert.equal(result.twoD, true);
   assert.ok(result.after > result.before);
+  await page.evaluate(() => document.querySelector('[data-chem="quantum"]').click());
+  assert.equal(await page.locator('#quantumFloor').evaluate(el => el.hidden), true);
   await page.mouse.move(80, 80);
   await page.mouse.down();
   assert.equal(await page.evaluate(() => window.audit.getPainting()), true);
@@ -158,6 +169,7 @@ test('shader setup failure falls back to a usable 2D canvas', async t => {
 
 test('WebGL context restoration preserves the dish and resumes rendering', async t => {
   const { page, errors } = await open(t, 'webgl');
+  await page.evaluate(() => document.querySelector('[data-chem="quantum"]').click());
   const initial = await page.evaluate(() => {
     const gl = document.getElementById('view').getContext('webgl2');
     if (!gl) return null;
@@ -193,11 +205,13 @@ test('WebGL context restoration preserves the dish and resumes rendering', async
   assert.equal(result.mass, initial.mass);
   assert.equal(result.error, 0);
   assert.equal(result.rendered, true);
+  assert.equal(await page.locator('#quantumFloor').evaluate(el => el.hidden), false);
   assert.deepEqual(errors, []);
 });
 
 test('failed shader setup during restoration hides unavailable lighting controls', async t => {
   const { page, errors } = await open(t, 'webgl');
+  await page.evaluate(() => document.querySelector('[data-chem="quantum"]').click());
   await page.evaluate(async () => {
     const canvas = document.getElementById('view'), gl = canvas.getContext('webgl2');
     window.restoreExtension = gl.getExtension('WEBGL_lose_context');
@@ -222,11 +236,13 @@ test('failed shader setup during restoration hides unavailable lighting controls
     return {
       twoD: !!document.getElementById('view').getContext('2d'),
       materialsHidden: document.getElementById('materials').hidden,
-      lightsHidden: document.getElementById('lights').hidden
+      lightsHidden: document.getElementById('lights').hidden,
+      floorHidden: document.getElementById('quantumFloor').hidden
     };
   });
   assert.equal(result.twoD, true);
   assert.equal(result.materialsHidden, true);
   assert.equal(result.lightsHidden, true);
+  assert.equal(result.floorHidden, true);
   assert.deepEqual(errors, []);
 });

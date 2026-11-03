@@ -50,7 +50,7 @@
 
 **Files:** feature diff, tests/artifacts, approved design and this plan.
 
-- [ ] Run npm test, python tools/splice.py --check, git diff --check, and Android staging check; retain logs.
-- [ ] Obtain one fresh independent review of the whole feature, explicitly checking Review Focus and the numerical/display boundary.
-- [ ] Fix material findings with regression coverage, rerun affected checks, and inspect the final diff.
-- [ ] Present the working preview and verified outcomes; keep any publication separate from the already authorized CI repair.
+- [x] Run npm test, python tools/splice.py --check, git diff --check, and Android staging check; retain logs.
+- [x] Obtain one fresh independent review of the whole feature, explicitly checking Review Focus and the numerical/display boundary.
+- [x] Fix material findings with regression coverage, rerun affected checks, and inspect the final diff.
+- [x] Present the working preview and verified outcomes; keep any publication separate from the already authorized CI repair.

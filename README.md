@@ -34,7 +34,7 @@ Keep the `web/audio/` directory beside `web/index.html` when copying the web app
 
 ## Layout
 
-Playback requests the browser's playback-oriented audio buffer. Live beats schedule ahead and skip overdue notes after a stall instead of sounding them together. If frame times stay high during audio playback, the drawing resolution adapts down and gradually recovers; simulation resolution and playback speed remain unchanged. These safeguards reduce load-related glitches but cannot diagnose an external audio device or driver.
+Playback requests the browser's playback-oriented audio buffer. Live beats schedule ahead and skip overdue notes after a stall instead of sounding them together. During audio playback, expensive scenes leave alternating animation opportunities free, and sustained slow frames reduce drawing resolution until capacity recovers. Visual motion may slow under load; simulation resolution, equation time steps, and song playback speed remain unchanged. These safeguards reduce load-related glitches but cannot diagnose an external audio device or driver.
 
 ```
 web/index.html      the app; open it in a browser
