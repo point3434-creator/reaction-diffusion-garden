@@ -19,10 +19,29 @@ test('Neon Canopy drives recurring pulses in the real Neon renderer', async t =>
   const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8')
     .replace(/<link[^>]*>/g, '')
     .replace('function analyse(now) {', 'function analyse(now) { neonAudit.frames++;')
-    .replace('  // ---- go ----', 'window.neonAudit = { music, state, frames: 0, getGL: () => gl };\n  // ---- go ----');
+    .replace('  // ---- go ----', 'window.neonAudit = { music, state, frame, frames: 0, getGL: () => gl };\n  // ---- go ----');
   await page.setContent(html, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => { neonAudit.state.paused = true; });
   assert.equal(await page.evaluate(() => neonAudit.getGL() instanceof WebGL2RenderingContext), true);
+  const decay = await page.evaluate(() => {
+    const raf = window.requestAnimationFrame, result = [];
+    // Advance visual time deterministically without creating extra animation loops.
+    window.requestAnimationFrame = () => 0;
+    try {
+      for (const frames of [1, 3, 12]) {
+        const start = performance.now();
+        neonAudit.music.lastKick = start; neonAudit.music.beat = 1;
+        for (let i = 1; i <= frames; i++) neonAudit.frame(start + i * 200 / frames);
+        result.push(neonAudit.music.beat);
+      }
+    } finally {
+      window.requestAnimationFrame = raf;
+      neonAudit.music.lastKick = 0; neonAudit.music.beat = 0;
+    }
+    return result;
+  });
+  for (const level of decay) assert.ok(Math.abs(level - Math.pow(0.86, 13)) < 1e-6,
+    '200 ms of pulse decay must be identical regardless of dropped visual frames');
   await page.getByRole('tab', { name: 'Look', exact: true }).click();
   await page.getByRole('button', { name: 'Neon', exact: true }).click();
   assert.equal(await page.locator('#mats button[aria-pressed="true"]').textContent(), 'Neon');
