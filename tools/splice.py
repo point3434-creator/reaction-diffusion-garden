@@ -3,6 +3,8 @@
 Run with --check to detect a stale generated page. MP3s are kept in web/audio/.
 Existing shader, stirring, physics and beat sources remain authoritative.
 """
+import base64
+import json
 import pathlib
 import re
 import sys
@@ -32,6 +34,17 @@ def splice(html):
     a = html.index('  var FRAG = `')
     b = html.index('\n`;', a) + len('\n`;')
     html = html[:a] + '  var FRAG = `' + frag + '\n`;' + html[b:]
+    assets = SRC / 'crystal-shell-assets'
+    manifest = json.loads((assets / 'manifest.json').read_text(encoding='utf-8'))
+    textures = ['data:image/png;base64,' + base64.b64encode((assets / item['file']).read_bytes()).decode('ascii')
+                for item in manifest['files']]
+    amber = 'data:image/jpeg;base64,' + base64.b64encode((SRC / 'amber-flow-assets' / 'surface.jpg').read_bytes()).decode('ascii')
+    texture_block = '  // BEGIN MATERIAL TEXTURES\n  var CRYSTAL_SHELL_TEXTURES = ' + json.dumps(textures) + ';\n'
+    texture_block += '  var AMBER_FLOW_TEXTURE = ' + json.dumps(amber) + ';\n'
+    texture_block += (SRC / 'material-textures.js').read_text(encoding='utf-8')
+    texture_block += '  // END MATERIAL TEXTURES\n'
+    html = re.sub(r'  // BEGIN MATERIAL TEXTURES\n.*?  // END MATERIAL TEXTURES\n', '', html, flags=re.S)
+    html = html.replace('  var FRAG = `', texture_block + '  var FRAG = `')
     blocks = [
         ('heart.js', "// Excitable tissue (Barkley's model)", '// The Schrödinger equation on the same grid'),
         ('quantum.js', '// The Schrödinger equation on the same grid', "// A slime mould (Jones's agent model"),
@@ -52,12 +65,6 @@ def splice(html):
     update = (SRC / 'song-library.js').read_text(encoding='utf-8')
     update += '\n' + (SRC / 'garden-update.js').read_text(encoding='utf-8')
     update += '\n' + (SRC / 'panel-art.js').read_text(encoding='utf-8')
-    policy = (SRC / 'pathtrace-state.js').read_text(encoding='utf-8')
-    update += '\n' + '\n'.join(line for line in policy.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))
-    path_frag = (SRC / 'pathtrace.glsl').read_text(encoding='utf-8').rstrip('\n')
-    assert '`' not in path_frag and '${' not in path_frag, 'the path shader must be a literal template'
-    update += '\n  var PATH_FRAG = `' + path_frag + '\n`;\n'
-    update += '\n' + (SRC / 'pathtrace.js').read_text(encoding='utf-8')
     block = '  // BEGIN GARDEN UPDATE\n' + current + '\n' + update + '\n  // END GARDEN UPDATE\n\n'
     marker = '  // ---- go ----'
     if html.count(marker) != 1:

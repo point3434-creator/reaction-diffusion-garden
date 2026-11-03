@@ -1,0 +1,11 @@
+{
+  "shader": "https://www.shadertoy.com/view/4t2SWW",
+  "files": [
+    {
+      "file": "surface.jpg",
+      "url": "https://www.shadertoy.com/media/a/92d7758c402f0927011ca8d0a7e40251439fba3a1dac26f5b8b62026323501aa.jpg",
+      "sha256": "bf1c3488a84e8d13381bca53dff4cdeefff42d90cc375d0ff3d44bebc76864b1"
+    }
+  ],
+  "environment": "../crystal-shell-assets/manifest.json"
+}

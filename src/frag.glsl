@@ -3,6 +3,9 @@ precision highp float;
 precision highp sampler2D;
 uniform sampler2D uField;
 uniform sampler2D uLut;
+uniform sampler2D uShellPebbles;
+uniform samplerCube uShellEnvironment;
+uniform sampler2D uAmberSurface;
 uniform vec2 uTexSize;
 uniform vec3 uBg;
 uniform float uLightTheme;
@@ -22,7 +25,7 @@ uniform vec3 uLampCol[3];
 uniform float uLampR;      // a lamp's marker, in cells
 uniform vec3 uSun;         // toward the sun
 uniform vec3 uSunCol;
-uniform int uPass;         // 1 shadow profile; 2 actual path-tracing surface; 0 draws the dish
+uniform int uPass;         // 1 draws the domes' heights for the rays, into uHeight; 0 draws the dish
 uniform sampler2D uHeight; // those heights, smoothed, at twice the grid's resolution
 in vec2 vUv;
 out vec4 outColor;
@@ -150,6 +153,11 @@ vec3 lightReach(vec2 uv, float z0, vec3 d, float spread) {
 }
 // How shiny each material is under a lamp: the strength of the lamp's own highlight on it.
 float glossOf(int m) {
+  if (m == 9) return 0.9;
+  if (m == 13) return 0.65;
+  if (m == 14) return 0.8;
+  if (m == 15) return 1.0;
+  if (m == 16) return 0.9;
   if (m == 0 || m == 8 || m == 12) return 1.0;
   if (m == 1) return 1.3;
   if (m == 10) return 0.9;
@@ -163,6 +171,159 @@ float vnoise(vec2 p) {
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
              mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+// BEGIN CRYSTAL SHELL ADAPTATION
+// Ray Marching Experiment 43, Stephane Cuillerdier (@Aiekick), 2016.
+// https://www.shadertoy.com/view/lstXRl
+// This adaptation: CC BY-NC-SA 3.0, https://creativecommons.org/licenses/by-nc-sa/3.0/
+// Original lighting credits Inigo Quilez: https://www.shadertoy.com/view/Xds3zN
+// Changes: map the two displaced layers onto the garden height field, retain the
+// original textures and reflection/refraction weights, use garden lighting, and
+// replace camera/sphere marching and step-count brightness with bounded shading.
+vec4 crystalShellLayers(vec2 gp, vec3 normal) {
+  vec2 uv = gp * 0.022 + normal.xy * 0.12;
+  vec2 drift = vec2(uTime * 0.1);
+  float outerNoise = texture(uShellPebbles, uv + drift).r;
+  float innerNoise = texture(uShellPebbles, uv * 2.0 + normal.xy * 0.08 + drift).r;
+  // Original radii: outer 4.78 - d1, inner wall 4.5 + d1, core 4.5 - d2.
+  // The purple shell opens wherever its two walls meet (d1 >= 0.14).
+  float d1 = outerNoise * 0.3, d2 = innerNoise * 0.3;
+  float shell = 1.0 - smoothstep(0.13, 0.15, d1);
+  float depth = mix(0.28 + d2, d1, shell);
+  return vec4(shell, outerNoise, innerNoise, depth);
+}
+vec3 studioEnvironment(vec3 ray) {
+  // Tilt the y-up studio over the z-up dish so its softbox catches curved edges.
+  return texture(uShellEnvironment, vec3(ray.x, 0.8 * ray.z + 0.6 * ray.y, 0.6 * ray.z - 0.8 * ray.y)).rgb;
+}
+vec3 crystalShellColor(vec4 layers, vec3 normal, vec3 light, float sunSeen) {
+  vec3 viewRay = vec3(0.0, 0.0, -1.0);
+  vec3 reflection = reflect(viewRay, normal);
+  vec3 refraction = refract(viewRay, normal, 0.7);
+  vec3 optics = studioEnvironment(reflection) * 0.45
+              + studioEnvironment(refraction) * 0.8;
+  vec3 tint = mix(layers.z * vec3(0.2, 0.5, 0.2), layers.y * vec3(0.5, 0.2, 0.5), layers.x);
+  float cavity = mix(0.45 + 0.45 * smoothstep(0.15, 0.23, layers.y * 0.3), 1.0, layers.x);
+  float diffuse = max(dot(normal, light), 0.0);
+  float ambient = clamp(0.5 + 0.5 * normal.z, 0.0, 1.0);
+  float dome = smoothstep(-0.1, 0.1, reflection.z);
+  float fresnel = pow(clamp(1.0 + dot(normal, viewRay), 0.0, 1.0), 2.0);
+  float highlight = pow(max(dot(reflection, light), 0.0), 16.0)
+                  * (uLight == 1 ? 0.0 : sunSeen);
+  vec3 lighting = 1.2 * diffuse * vec3(1.0, 0.9, 0.6)
+                + 1.2 * highlight * diffuse * vec3(1.0, 0.9, 0.6)
+                + (0.3 * ambient + 0.4 * dome) * vec3(0.5, 0.7, 1.0) * cavity
+                + vec3(0.4 * fresnel * cavity + 0.02);
+  vec3 color = mix(optics * lighting, tint, 0.5) * cavity * 1.6;
+  return pow(clamp(color, 0.0, 1.0), vec3(0.85));
+}
+// END CRYSTAL SHELL ADAPTATION
+// BEGIN AMBER FLOW ADAPTATION
+// Ray Marching Experiment 35, Stephane Cuillerdier (@Aiekick), 2015.
+// https://www.shadertoy.com/view/4t2SWW (based on https://www.shadertoy.com/view/llSSWD)
+// This adaptation: CC BY-NC-SA 3.0, https://creativecommons.org/licenses/by-nc-sa/3.0/
+// Changes: apply the original animated texture/displacement to the garden height
+// field, share its studio cubemap, and refract the view ray through a smooth coat.
+// The garden supplies the geometry and lights instead of the sphere tracer/camera.
+vec4 amberFlowSurface(vec2 gp) {
+  float t = uTime * 1.5;
+  vec2 uv = gp * 0.0025;
+  uv.x -= t * 0.015;
+  uv.y += sin(uv.x * 46.5 + t) * 0.12;
+  // Preserve the source's breathing texture blur, with a pixel-footprint floor.
+  float footprint = max(length(dFdx(uv)), length(dFdy(uv))) * float(textureSize(uAmberSurface, 0).x);
+  float lod = max(4.0 * (sin(t) * 0.5 + 0.5), log2(max(footprint, 1.0)));
+  vec3 color = textureLod(uAmberSurface, uv, lod).rgb;
+  // Defined equivalent of the source's reversed-edge smoothstep.
+  color = 1.0 - smoothstep(color, color + 0.5, vec3(0.71));
+  float depth = 1.0 - smoothstep(0.0, 1.0, dot(color, vec3(0.3)));
+  return vec4(color, depth);
+}
+vec3 amberFlowColor(vec4 surface, vec3 normal, vec3 light, float sunSeen) {
+  vec3 viewRay = vec3(0.0, 0.0, -1.0);
+  vec3 reflection = reflect(viewRay, normal);
+  vec3 refraction = refract(viewRay, normal, 1.0 / 1.2);
+  vec3 optics = studioEnvironment(reflection) * 0.6 + studioEnvironment(refraction) * 0.8;
+  float diffuse = max(dot(normal, light), 0.0);
+  float ambient = clamp(0.5 + 0.5 * normal.z, 0.0, 1.0);
+  float dome = smoothstep(-0.1, 0.1, reflection.z);
+  float fresnel = pow(clamp(1.0 + dot(normal, viewRay), 0.0, 1.0), 2.0);
+  float highlight = pow(max(dot(reflection, light), 0.0), 16.0) * (uLight == 1 ? 0.0 : sunSeen);
+  float cavity = 1.0 - surface.a * 0.25;
+  vec3 lighting = 1.2 * diffuse * vec3(1.0, 0.9, 0.6)
+                + 1.2 * highlight * diffuse * vec3(1.0, 0.9, 0.6)
+                + (0.3 * ambient + 0.4 * dome) * vec3(0.5, 0.7, 1.0) * cavity
+                + vec3(0.4 * fresnel * cavity + 0.02);
+  return mix(optics * lighting, surface.rgb, 0.5);
+}
+// END AMBER FLOW ADAPTATION
+// Adapted from the user-supplied Liquid Gold demo. Keep its three-stage flow;
+// soften the fine octaves so small garden domes read as liquid rather than glitter.
+float goldNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  vec4 corners = vec4(dot(i, vec2(127.1, 311.7)), dot(i + vec2(1, 0), vec2(127.1, 311.7)),
+                      dot(i + vec2(0, 1), vec2(127.1, 311.7)), dot(i + vec2(1, 1), vec2(127.1, 311.7)));
+  corners = fract(sin(corners) * 43758.5453);
+  return mix(mix(corners.x, corners.y, f.x), mix(corners.z, corners.w, f.x), f.y);
+}
+float goldFbm(vec2 p, float t) {
+  float value = 0.0, amplitude = 0.5, frequency = 1.0;
+  for (int i = 0; i < 4; i++) {
+    value += amplitude * goldNoise(p * frequency + t);
+    frequency *= 2.18;
+    amplitude *= 0.4;
+    p += vec2(1.7, 9.2);
+  }
+  return value;
+}
+float goldWarpedField(vec2 p, float t) {
+  vec2 q = vec2(goldFbm(p, t * 0.5), goldFbm(p + vec2(5.2, 1.3), t * 0.5));
+  vec2 r = vec2(goldFbm(p + 3.0 * q + vec2(1.7, 9.2), t * 0.7),
+                goldFbm(p + 3.0 * q + vec2(8.3, 2.8), t * 0.7));
+  return goldFbm(p + 2.5 * r, t * 0.4) + length(q) * 0.4 + length(r) * 0.3;
+}
+// Ordered silica domains produce different reflection bands at different angles.
+// Two warped, partly buried layers approximate their irregular play-of-color;
+// the smooth cabochon normal is left intact. Pattern coordinates never depend on time.
+// Appearance reference: https://www.gia.edu/opal-quality-factor
+vec3 opalFire(vec2 gp, vec3 normal, vec3 light, float height) {
+  vec3 fire = vec3(0.0);
+  vec3 halfLight = normalize(light + vec3(0.0, 0.0, 1.0));
+  for (int layer = 0; layer < 2; layer++) {
+    float depth = float(layer);
+    vec2 p = (gp + normal.xy * (0.65 + 1.3 * depth) * height) * (0.32 + depth * 0.32);
+    p += vec2(vnoise(gp * 0.29 + depth * 13.0), vnoise(gp * 0.31 + 27.0)) * 1.7;
+    p += vec2(vnoise(gp * 0.83 + 8.0), vnoise(gp * 0.79 + depth * 9.0)) * 0.45;
+    p += depth * vec2(17.3, 9.1);
+    vec2 cell = floor(p), seed = vec2(0.0);
+    float first = 1e5, second = 1e5;
+    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+      vec2 at = cell + vec2(x, y);
+      vec2 point = at + 0.12 + 0.76 * vec2(hash12(at), hash12(at + 37.2));
+      float d = dot(p - point, p - point);
+      if (d < first) { second = first; first = d; seed = at; }
+      else second = min(second, d);
+    }
+    vec2 orientation = vec2(vnoise(seed * 0.38 + 7.0), vnoise(seed * 0.38 + 43.0)) - 0.5;
+    orientation += (vec2(hash12(seed + 7.0), hash12(seed + 43.0)) - 0.5) * 0.35;
+    vec3 domain = normalize(normal + vec3(orientation * 1.45, 0.3));
+    float alignment = max(dot(domain, halfLight), 0.0);
+    float wavelength = 410.0 + 310.0 * vnoise(seed * 0.38 + 91.0)
+      + 90.0 * (hash12(seed + 91.0) - 0.5) - 130.0 * (1.0 - alignment)
+      + 18.0 * (vnoise(p * 3.0) - 0.5);
+    vec3 band = (vec3(615.0, 535.0, 460.0) - wavelength) / vec3(40.0, 32.0, 29.0);
+    vec3 spectral = exp(-0.5 * band * band);
+    float flash = pow(alignment, 12.0 + 20.0 * hash12(seed + 16.0));
+    float border = smoothstep(0.0, 0.15, second - first);
+    float islands = smoothstep(0.22, 0.52, vnoise(gp * 0.18 + depth * 29.0));
+    float flecks = smoothstep(0.20, 0.72, vnoise(gp * 1.4 + depth * 8.0) * 0.6 + vnoise(p * 2.7) * 0.4);
+    // Suppress the fine layer before its details become smaller than a screen pixel.
+    float resolved = 1.0 - smoothstep(0.65, 1.3, max(length(dFdx(p)), length(dFdy(p))));
+    fire += spectral * flash * (0.45 + 0.55 * border) * islands * (0.20 + 0.80 * flecks)
+      * mix(1.15, 0.55, depth) * resolved;
+  }
+  return fire;
 }
 // The field averaged around a ring: a cheap blur for glows.
 vec4 ringC(vec2 uv, vec2 px, float r, float phase) {
@@ -203,22 +364,50 @@ float lavaNoise(vec3 p) {
   return mix(vnoise(p.xy + vec2(37.0, 17.0) * z),
              vnoise(p.xy + vec2(37.0, 17.0) * (z + 1.0)), f);
 }
-// A narrow, antialiased core and a restrained halo, measured in screen pixels.
-vec2 electricFilament(float path) {
-  float d = abs(path) / max(fwidth(path), 0.001);
-  return vec2(1.0 - smoothstep(0.3, 1.0, d), exp(-d * d * 0.16));
+// BEGIN VORONESQUE GEM ADAPTATION
+// Voronesque Gem, Stephane Cuillerdier (@Aiekick), 2016.
+// https://www.shadertoy.com/view/XsdXDX
+// Voronesque function by Shane; original tuned via XShade (funparadigm.com/xshade/).
+// This adaptation: CC BY-NC-SA 3.0, https://creativecommons.org/licenses/by-nc-sa/3.0/
+// Changes: wrap the displaced sphere coordinates onto each garden dome, vary the
+// cells across the dish, filter normals by pixel footprint, and use garden lights.
+// Retain the source's drifting cells, orbiting color frame, and two-layer shading.
+float voronesque(vec3 p) {
+  vec3 i = floor(p + dot(p, vec3(0.333333)));
+  p -= i - dot(i, vec3(0.166666));
+  vec3 i1 = step(0.0, p - p.yzx), i2 = max(i1, 1.0 - i1.zxy);
+  i1 = min(i1, 1.0 - i1.zxy);
+  vec3 p1 = p - i1 + 0.166666, p2 = p - i2 + 0.333333, p3 = p - 0.5;
+  vec3 rnd = vec3(5.46, 62.8, 164.98);
+  vec4 v = max(0.5 - vec4(dot(p, p), dot(p1, p1), dot(p2, p2), dot(p3, p3)), 0.0);
+  vec4 d = vec4(dot(i, rnd), dot(i + i1, rnd), dot(i + i2, rnd), dot(i + 1.0, rnd));
+  d = fract(sin(d) * 1000.0) * v * 2.0;
+  return max(max(d.x, d.y), max(d.z, d.w));
 }
+float voronesqueDistance(vec3 p, vec3 offset) {
+  return length(p) - 1.6 + sqrt(voronesque(p + offset) * 0.5);
+}
+vec3 voronesqueNormal(vec3 p, vec3 offset, float prec) {
+  vec2 e = vec2(-1.0, 1.0) * prec;
+  return normalize(e.yxx * voronesqueDistance(p + e.yxx, offset)
+                 + e.xxy * voronesqueDistance(p + e.xxy, offset)
+                 + e.xyx * voronesqueDistance(p + e.xyx, offset)
+                 + e.yyy * voronesqueDistance(p + e.yyy, offset));
+}
+vec3 voronesqueShade(vec3 p, vec3 normal, vec3 viewRay, float distance, vec3 weights) {
+  vec3 radial = normalize(p);
+  vec3 tint = normalize(mix(vec3(max(0.0, 2.3 - distance)), radial, 0.8));
+  vec3 reflection = texture(uShellEnvironment, reflect(viewRay, normal)).rgb;
+  float shine = pow(clamp(0.35 + dot(normal, radial) * 0.6, 0.0, 1.0), 30.0);
+  return (tint * reflection * weights.x + shine * weights.y) * weights.z;
+}
+// END VORONESQUE GEM ADAPTATION
 
 void main() {
   // the heights the rays read, from the smooth (bicubic) field: read from the grid itself, every shadow's edge
   // would be ragged a cell at a time
   // and, for see-through materials, the colour each dome gives the light crossing it
   if (uPass == 1) { vec4 c1 = fieldAt(vUv); float b1 = bsum(c1); outColor = vec4(blockerOf(b1), filterOf(c1, b1)); return; }
-  if (uPass == 2) {
-    vec4 c1 = fieldAt(vUv); float b1 = bsum(c1);
-    float h1 = uHeart > 0.5 && c1.a <= -0.5 ? 0.0 : heightOf(b1);
-    outColor = vec4(h1, filterOf(c1, b1)); return;
-  }
   vec2 px = 1.0 / uTexSize;
   vec4 c = fieldAt(vUv);
   float b = bsum(c);
@@ -229,6 +418,51 @@ void main() {
   float hD = heightOf(bsum(fieldAt(vUv + vec2(0.0, px.y * o))));
   float h = heightOf(b);
   vec3 N = normalize(vec3(-(hR - hL) * uBump, -(hD - hU) * uBump, 2.0 * o));
+  mat3 gemFrame = mat3(1.0);
+  vec3 gemPosition = vec3(0.0, 0.0, 1.0), gemOffset = vec3(0.0), gemNormal = N;
+  float gemPrecision = 0.01;
+  if (uMat == 9) {
+    float angle = uTime * 0.1;
+    vec3 camera = normalize(vec3(cos(angle) * 2.0, 1.0, sin(angle) * 2.0));
+    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), -camera));
+    gemFrame = mat3(right, cross(-camera, right), camera);
+    gemPosition = gemFrame * N * 1.45;
+    gemOffset = vec3(vUv * uTexSize * 0.035, uTime * 0.2);
+    gemPrecision = clamp(max(length(dFdx(gemPosition)), length(dFdy(gemPosition))) * 0.5, 0.01, 0.12);
+    gemNormal = voronesqueNormal(gemPosition, gemOffset, gemPrecision);
+    N = normalize(transpose(gemFrame) * gemNormal);
+  }
+  vec4 shellLayers = vec4(0.0);
+  if (uMat == 14) {
+    vec2 gp = vUv * uTexSize;
+    shellLayers = crystalShellLayers(gp, N);
+    // Recesses and shell walls perturb the normal used by every garden light.
+    // Central samples avoid the 2x2 steps that screen derivatives give steep rims.
+    vec2 slope = vec2(
+      crystalShellLayers(gp + vec2(0.2, 0.0), N).w - crystalShellLayers(gp - vec2(0.2, 0.0), N).w,
+      crystalShellLayers(gp + vec2(0.0, 0.2), N).w - crystalShellLayers(gp - vec2(0.0, 0.2), N).w) / 0.4;
+    N = normalize(vec3(N.xy + slope * (uBump / 4.78) * N.z, N.z));
+  }
+  float goldField = 0.0;
+  if (uMat == 15) {
+    vec2 surface = vUv * uTexSize * 0.045;
+    goldField = goldWarpedField(surface, uTime * 0.4);
+    // Screen derivatives give the ripple slope without evaluating the expensive
+    // field three times. Preserve the dome silhouette and use this normal for all lights.
+    vec2 stepSize = vec2(dFdx(surface.x), dFdy(surface.y));
+    vec2 slope = vec2(dFdx(goldField), dFdy(goldField))
+      / (sign(stepSize) * max(abs(stepSize), vec2(0.00001)));
+    N = normalize(vec3(N.xy - slope * 0.16 * N.z, N.z));
+  }
+  vec4 amberSurface = vec4(0.0);
+  if (uMat == 16) {
+    vec2 gp = vUv * uTexSize;
+    amberSurface = amberFlowSurface(gp);
+    vec2 slope = vec2(
+      amberFlowSurface(gp + vec2(0.2, 0.0)).a - amberFlowSurface(gp - vec2(0.2, 0.0)).a,
+      amberFlowSurface(gp + vec2(0.0, 0.2)).a - amberFlowSurface(gp - vec2(0.0, 0.2)).a) / 0.4;
+    N = normalize(vec3(N.xy + slope * (uBump / 4.5) * N.z, N.z));
+  }
 
   // the lights live in the room; tilting the phone moves them across the dish
   vec3 L = normalize(vec3(-0.45 + uTilt.x, -0.55 + uTilt.y, 0.7));
@@ -496,33 +730,76 @@ void main() {
     col = mix(col, col * 0.5, fres * fres * 0.5 * lt);
     float g0 = gridAt(gp);
     bg = mix(uBg + g0 * 0.05, uBg * (1.0 - g0 * 0.12), lt) * (1.0 - shadow * mix(0.4, 0.2, lt));
-  } else {
-    // ---- electricity: blue and gold filaments travel across each curved surface ----
+  } else if (uMat == 13) {
+    // ---- polished black opal: smooth skin above internal spectral patches ----
     vec2 gp = vUv * uTexSize;
-    float t = uTime;
-    vec2 surface = gp * 0.23 + N.xy * 1.6;
-    // Normal-based paths cross even small domes; bounded noise bends them without becoming outline rings.
-    float bluePath = dot(N.xy, vec2(0.92, 0.39))
-      + 0.28 * (vnoise(surface * 1.7 + vec2(t * 0.55, -t * 0.32)) - 0.5)
-      + 0.10 * sin(gp.y * 0.32 - t * 1.1);
-    float goldPath = dot(N.xy, vec2(-0.55, 0.84))
-      + 0.28 * (vnoise(surface * 1.9 + vec2(-t * 0.38, t * 0.47) + 23.0) - 0.5)
-      + 0.10 * sin(gp.x * 0.35 + t * 0.9);
-    vec2 blue = electricFilament(bluePath), gold = electricFilament(goldPath);
-    float bluePulse = 0.65 + 0.35 * vnoise(surface * 0.7 + vec2(t * 1.2, 9.0));
-    float goldPulse = 0.65 + 0.35 * vnoise(surface * 0.7 - vec2(4.0, t * 1.0));
-    vec3 blueCol = vec3(0.055, 0.38, 1.0), goldCol = vec3(1.0, 0.72, 0.035);
-    col = vec3(0.012, 0.023, 0.042) + vec3(0.025, 0.045, 0.07) * ndl + tintP * 0.018;
-    col += blueCol * (blue.x * 1.05 + blue.y * 0.18) * bluePulse;
-    col += goldCol * (gold.x * 1.05 + gold.y * 0.16) * goldPulse;
-    col += vec3(0.12, 0.18, 0.23) * (blue.x + gold.x) * 0.15 + vec3(0.05, 0.08, 0.13) * fres * fres;
-    col = col / (vec3(1.0) + col * 0.28);
-    bg = uBg + vec3(0.035, 0.08, 0.17) * halo * 0.25;
+    float cloud = vnoise(gp * 0.18) * 0.65 + vnoise(gp * 0.43 + 11.0) * 0.35;
+    float wrap = clamp((dot(N, L) + 0.45) / 1.45, 0.0, 1.0);
+    vec3 body = vec3(0.022, 0.028, 0.035);
+    body *= (0.30 + 0.70 * wrap) * (0.82 + 0.18 * cloud);
+    vec3 fire = opalFire(gp, N, L, h) * (0.45 + 0.55 * ndl);
+    col = body + fire * 1.1;
+    vec3 reflection = reflect(-Vv, N);
+    float softbox = pow(max(dot(reflection, normalize(L + vec3(0.05, -0.10, 0.25))), 0.0), 48.0);
+    float coat = (softbox * 0.65 + spec * 0.45) * (1.0 + uBeat * 0.08);
+    col += vec3(1.0, 0.98, 0.94) * coat + vec3(0.045, 0.055, 0.065) * pow(fres, 3.0);
+    col = pow(clamp(col, 0.0, 1.0), vec3(0.65));
+    bg = uBg * (1.0 - shadow * 0.55);
+  } else if (uMat == 14) {
+    // Crystal Shell uses the CC BY-NC-SA adaptation credited above.
+    col = crystalShellColor(shellLayers, N, L, sunSeen);
+    bg = uBg * (1.0 - shadow * 0.55);
+  } else if (uMat == 15) {
+    // ---- Gold Ripple: moving molten reflections from the Liquid Gold demo ----
+    vec3 goldBase = vec3(0.83, 0.61, 0.22), goldBright = vec3(1.0, 0.84, 0.45);
+    vec3 goldDeep = vec3(0.55, 0.35, 0.08), goldShadow = vec3(0.18, 0.10, 0.02);
+    vec3 whiteHot = vec3(1.0, 0.97, 0.88);
+    float fieldNorm = smoothstep(0.3, 1.8, goldField);
+    vec3 baseColor = mix(goldShadow, goldDeep, smoothstep(0.0, 0.3, fieldNorm));
+    baseColor = mix(baseColor, goldBase, smoothstep(0.3, 0.6, fieldNorm));
+    baseColor = mix(baseColor, goldBright, smoothstep(0.6, 0.9, fieldNorm));
+    vec3 L3 = normalize(vec3(0.0, 0.8, 0.5));
+    float s1 = pow(max(dot(N, H), 0.0), 120.0) * (uLight == 1 ? 0.0 : sunSeen);
+    float s2 = pow(max(dot(N, H2), 0.0), 80.0) * (uLight == 0 ? 1.0 : 0.0);
+    float s3 = pow(max(dot(N, normalize(L3 + Vv)), 0.0), 200.0) * (uLight == 0 ? 1.0 : 0.0);
+    vec3 diffuse = baseColor * (ndl * 0.5 + max(dot(N, L2), 0.0) * 0.3 + max(dot(N, L3), 0.0) * 0.2);
+    vec3 highlights = mix(goldBright, whiteHot, s1) * s1 * 1.2
+                    + mix(goldBright, whiteHot, s2 * 0.5) * s2 * 0.6
+                    + mix(goldBright, whiteHot, s3) * s3 * 1.5;
+    float metalFresnel = 0.8 + 0.2 * pow(fres, 5.0);
+    float reflectionY = N.y * 0.5 + 0.5;
+    vec3 environment = mix(vec3(0.12, 0.07, 0.02), vec3(0.45, 0.30, 0.12), reflectionY);
+    environment = mix(environment, vec3(0.7, 0.55, 0.25), smoothstep(0.6, 1.0, reflectionY));
+    col = diffuse * 0.4 + highlights * metalFresnel * (1.0 + uBeat * 0.12)
+        + environment * metalFresnel * 0.5 + baseColor * 0.12;
+    float ripple = goldNoise(vUv * uTexSize * 0.3 + uTime * 0.8);
+    col += whiteHot * smoothstep(0.6, 0.9, ripple * ripple) * 0.08 * metalFresnel;
+    col += goldBright * pow(fres, 5.0) * 0.12;
+    col = col * (2.51 * col + 0.03) / (col * (2.43 * col + 0.59) + 0.14);
+    col = pow(max(col, vec3(0.0)), vec3(0.95, 1.0, 1.08));
+    bg = uBg * (1.0 - shadow * 0.55);
+  } else if (uMat == 16) {
+    col = amberFlowColor(amberSurface, N, L, sunSeen);
+    bg = uBg * (1.0 - shadow * 0.55);
+  } else {
+    // Voronesque Gem (material 9): the original reflective outer and inner layers.
+    vec3 viewRay = -gemFrame[2];
+    float distance = 2.3 - dot(gemPosition, gemFrame[2]);
+    vec3 outer = voronesqueShade(gemPosition, gemNormal, viewRay, distance, vec3(0.9, 0.0, 1.0));
+    vec3 innerPosition = gemPosition + viewRay;
+    vec3 innerNormal = voronesqueNormal(innerPosition, gemOffset, gemPrecision);
+    vec3 inner = voronesqueShade(innerPosition, innerNormal, viewRay, 1.0, vec3(1.0, 1.0, 3.0));
+    inner = clamp(inner, 0.0, 1.0 / 0.55);
+    col = texture(uShellEnvironment, viewRay).rgb + mix(outer, inner, 0.45);
+    col += vec3(1.0, 0.98, 0.95) * spec * 0.25 * (1.0 + uBeat * 0.08);
+    bg = uBg * (1.0 - shadow * 0.55);
   }
   // the beat: the blobs flare (or, on paper, deepen) and throw a little light around them
-  col *= 1.0 + uBeat * mix(0.4, -0.15, lt);
-  bg += tint * halo * uBeat * 0.35 * (1.0 - lt);
-  bg = mix(bg, bg * tint, halo * uBeat * 0.3 * lt);
+  if (uMat != 9 && uMat != 13 && uMat != 14 && uMat != 15 && uMat != 16) {
+    col *= 1.0 + uBeat * mix(0.4, -0.15, lt);
+    bg += tint * halo * uBeat * 0.35 * (1.0 - lt);
+    bg = mix(bg, bg * tint, halo * uBeat * 0.3 * lt);
+  }
   if (uHeart > 0.5) {
     float scar = step(c.a, -0.5);
     if (uHeart < 1.5) {
@@ -553,7 +830,7 @@ void main() {
   if (uLight > 0) {
     // what glows keeps most of its own light; everything else is lit by what arrives, and a dark floor is lifted a
     // little so that light and shadow show on it
-    float emis = (uMat == 4 || uMat == 7 || uMat == 9 || uMat == 11) ? 0.6 : 0.0;
+    float emis = (uMat == 4 || uMat == 7 || uMat == 11) ? 0.6 : 0.0;
     outc += vec3(0.065, 0.07, 0.075) * (1.0 - mask) * (1.0 - uLightTheme) * (1.0 - emis / 0.6);
     outc = outc * mix(E, vec3(1.0), emis) + glint * mask * glossOf(uMat) * mix(1.6, 1.0, uLightTheme);
     // up to the room's own brightness nothing changes; brighter light rolls off toward white
