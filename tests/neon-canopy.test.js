@@ -10,8 +10,9 @@ test('Neon Canopy drives recurring pulses in the real Neon renderer', async t =>
   if (process.env.CHROMIUM_EXECUTABLE) options.executablePath = process.env.CHROMIUM_EXECUTABLE;
   const browser = await chromium.launch(options);
   t.after(() => browser.close());
-  // Keep software GPU work small enough for the real-time audio analyser.
-  const page = await browser.newPage({ viewport: { width: 1100, height: 800 }, deviceScaleFactor: 0.5 });
+  // SwiftShader must keep pace with live audio; this test checks pulse timing.
+  // Material appearance is covered separately at full resolution in material-shaders.test.js.
+  const page = await browser.newPage({ viewport: { width: 1100, height: 800 }, deviceScaleFactor: 0.125 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.route('https://**/*', route => route.abort());
