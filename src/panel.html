@@ -20,6 +20,7 @@
             <button class="chip" type="button" data-chem="heart" aria-pressed="false">Heart</button>
             <button class="chip" type="button" data-chem="quantum" aria-pressed="false">Quantum</button>
             <button class="chip" type="button" data-chem="mould" aria-pressed="false">Mould</button>
+            <button class="chip" type="button" data-chem="cgl" aria-pressed="false">Resonance</button>
           </div>
         </div>
         <div class="group">
@@ -108,6 +109,12 @@
       </section>
 
       <section class="pane" data-pane="look" role="tabpanel" hidden>
+        <div class="group" id="quantumFloor" hidden>
+          <h3 class="eyebrow">Quantum floor</h3>
+          <div class="actions"><label class="floor-colour">Colour <input id="qFloorColor" type="color" value="#07131f" aria-label="Quantum floor colour"></label><button class="act" type="button" id="qFloorReset">Use palette colour</button></div>
+          <label class="floor-pattern"><input id="qFloorGrid" type="checkbox" checked> Fine grid beneath the glass</label>
+          <p class="note">Clear glass barriers catch the light along their edges. These controls change the floor beneath them.</p>
+        </div>
         <div class="group" id="materials">
           <h3 class="eyebrow">Made of</h3>
           <div class="chips" id="mats" role="group" aria-label="Material"></div>

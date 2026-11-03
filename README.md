@@ -1,10 +1,14 @@
 # Reaction–diffusion garden
 
-Three physics simulations and a slime mould in one dish, painted with a finger, lit by seventeen materials, and driven by sound.
+Reaction–diffusion, oscillating waves, fluid motion and a slime mould in one dish, painted with a finger, lit by seventeen materials, and driven by sound.
 
 It started as a toy for Turing patterns: two chemicals, two rules, every pattern on a leopard. It grew a heart, a Schrödinger equation, a slime mould, a studio's worth of surface materials, six original beats, a phone build, and a glass panel to hold it all. Everything runs on the device, in one HTML file, with no servers, no accounts, and nothing sent anywhere.
 
 ## What's in the dish
+
+**Resonance** is the cubic Complex Ginzburg–Landau equation: `A_t = A + (1 + i b) ΔA - (1 + i c)|A|²A`. Its complex field carries both strength and phase. **Spiral Bloom**, **Wave Garden**, and **Phase Storm** start different wave arrangements; dispersion and twist change how they evolve. Paint to disturb their phase, Dampen to quiet a patch, or Reseed waves to start again. Surface ridges follow phase and amplitude, while phase supplies colour for materials that use the palette. The solver uses a periodic grid and second-order midpoint integration; it is separate from the display mapping and currently runs on the CPU. See [Aranson and Kramer](https://arxiv.org/abs/cond-mat/0106115) for the underlying model.
+
+**Quantum glass and floor:** Quantum barriers have transparent faces, beveled reflective edges, and a small cast shadow. In Quantum's **Look** tab, choose a floor colour or return to the palette colour, and toggle the fine grid beneath the glass. Those preferences are saved in this browser. Barrier physics is unchanged; the glass appearance does not make a wall permeable to the wave.
 
 **Garden** is the Gray–Scott reaction–diffusion model. Chemical A feeds in, chemical B washes out, and the one reaction A + 2B → 3B makes B wherever B already is. Because A diffuses twice as fast as B, blobs of B starve their neighbours, and that short-range growth with long-range inhibition is the whole recipe for spots, stripes, coral, fingerprints and dividing cells. Eight presets sit along the curve where the chemistry has a second steady state; drag the map to explore it. A preset grows out of whatever is in the dish, and when none of it can live under the new one (Storm into Spots, say), new seeds go in. The ninth, Atlas, grows them all at once: the band along that curve is straightened out over the dish, with the feed rising from one end to the other and the kill running across, so every cell reacts at its own feed and kill, and pointing at the dish shows where on the map you are. Stir turns a drag into a current: a fluid flow, after Jos Stam's stable fluids, runs under the chemistry and carries it along, so coral wraps into spirals and spots smear into streaks and pinch back into spots (hold Shift to stir without leaving the brush). Every stroke founds a lineage: B carries the colour of the stroke it descends from, so where lineages meet, you can see who outgrew whom. A photo can seed the dish: its dark places become dots of B in the photo's own colours, and the preset decides what they grow into.
 
@@ -29,6 +33,8 @@ Browse the numbered song reel by dragging, swiping, or scrolling, and use **Find
 Keep the `web/audio/` directory beside `web/index.html` when copying the web app; Android builds include the same recordings in their assets. The beats are still synthesized live. Microphone input, screen audio and the ordinary song-file picker take over from the jukebox until you start it again.
 
 ## Layout
+
+Playback requests the browser's playback-oriented audio buffer. Live beats schedule ahead and skip overdue notes after a stall instead of sounding them together. If frame times stay high during audio playback, the drawing resolution adapts down and gradually recovers; simulation resolution and playback speed remain unchanged. These safeguards reduce load-related glitches but cannot diagnose an external audio device or driver.
 
 ```
 web/index.html      the app; open it in a browser

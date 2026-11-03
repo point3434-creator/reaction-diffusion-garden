@@ -293,6 +293,9 @@
     .map { height: 128px; }
     .why p, .why ul { font-size: 16px; }
   }
+  .floor-colour { display: inline-flex; align-items: center; gap: 8px; }
+  .floor-colour input { width: 42px; height: 32px; padding: 2px; border: 1px solid var(--line); background: transparent; border-radius: 7px; cursor: pointer; }
+  .floor-pattern { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; }
   @media (prefers-reduced-motion: reduce) {
     .hint, .panel, .chip, .act, .tab-btn { transition: none; }
     .recbadge i { animation: none; }
@@ -538,6 +541,7 @@
             <button class="chip" type="button" data-chem="heart" aria-pressed="false">Heart</button>
             <button class="chip" type="button" data-chem="quantum" aria-pressed="false">Quantum</button>
             <button class="chip" type="button" data-chem="mould" aria-pressed="false">Mould</button>
+            <button class="chip" type="button" data-chem="cgl" aria-pressed="false">Resonance</button>
           </div>
         </div>
         <div class="group">
@@ -626,6 +630,12 @@
       </section>
 
       <section class="pane" data-pane="look" role="tabpanel" hidden>
+        <div class="group" id="quantumFloor" hidden>
+          <h3 class="eyebrow">Quantum floor</h3>
+          <div class="actions"><label class="floor-colour">Colour <input id="qFloorColor" type="color" value="#07131f" aria-label="Quantum floor colour"></label><button class="act" type="button" id="qFloorReset">Use palette colour</button></div>
+          <label class="floor-pattern"><input id="qFloorGrid" type="checkbox" checked> Fine grid beneath the glass</label>
+          <p class="note">Clear glass barriers catch the light along their edges. These controls change the floor beneath them.</p>
+        </div>
         <div class="group" id="materials">
           <h3 class="eyebrow">Made of</h3>
           <div class="chips" id="mats" role="group" aria-label="Material"></div>
@@ -1676,6 +1686,8 @@ function hueRGB(hue) {
   function mouldColony(s, p, frac) { s.populate(Math.round(p.pop * s.w * s.h), s.w * 0.5, s.h * 0.5, Math.min(s.w, s.h) * frac); }
   // What each chemistry calls things, and which controls it shows.
   var CHEMS = {
+    cgl: { lede: 'Complex Ginzburg–Landau: a garden of oscillators. Spirals send out waves, waves meet, and their rhythm can unravel into a living storm.',
+      lab1: 'dispersion', lab2: 'twist', erase: 'Dampen', seed: 'Reseed waves', hint: 'Paint to disturb the rhythm and grow new waves', pace: false, photo: false, swatches: true, trace: 'none' },
     garden: { lede: 'Two chemicals, two rules, every pattern on a leopard. Paint on the dish, then watch what the rules do with it.',
       lab1: 'feed', lab2: 'kill', erase: 'Erase', seed: 'Scatter seeds', hint: 'Paint on it with a finger or mouse', pace: false, photo: true, swatches: true, trace: 'map', stir: true },
     heart: { lede: 'Excitable tissue, one rule: fire when your neighbours fire, then rest. Paint a stimulus and watch it wave; break a wave and watch it spin.',
@@ -1749,7 +1761,8 @@ function hueRGB(hue) {
     f: PRESETS[0].f, k: PRESETS[0].k, steps: 8, stepsEff: 8,
     paused: false, erase: false, stir: false, atlas: false, preset: 0, size: 'large',
     palette: 0, material: 0, brushHue: null, strokePig: null,
-    chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null,
+    chem: 'garden', hb: 0.06, hrec: 0.35, qV0: 1.0, qSigma: 8, mso: 9, mdecay: 0.08, mp: null, cb: 0.3, cc: 1.4,
+    qFloorColor: null, qFloorGrid: true,
     setup: 0,   // the preset the heart, the quantum dish or the mould was last set up with, though a slider has moved since
     tilt: { x: 0, y: 0, tx: 0, ty: 0 },
     // the light: the room's own (studio), a lamp, three coloured stage lamps, or a low sun going round
@@ -1761,6 +1774,7 @@ function hueRGB(hue) {
 
   // ---- grid ----
   var sim = null, flow = null, img = null, pix32 = null, lut = new Uint32Array(256);
+  var audioRenderBudget = createAudioRenderBudget(), previousFrameTime = 0;
 
   function gridFor(w, h) {
     var longSide = Math.round(Math.max(160, Math.min(300, Math.round(Math.max(w, h) / 3))) / gridZoom());
@@ -1784,6 +1798,9 @@ function hueRGB(hue) {
   // the last one did once a slider has moved.
   function freshSim(w, h) {
     var p = state.preset >= 0 ? state.preset : state.setup;
+    if (state.chem === 'cgl') {
+      var cs = createCGL(w, h); cs.seed(p < CGL_PRESETS.length ? p : 0); return cs;
+    }
     if (state.chem === 'heart') {
       var s = createHeart(w, h);
       applyHeartPreset(s, p < HPRESETS.length ? p : 0);
@@ -1804,6 +1821,10 @@ function hueRGB(hue) {
     g.scale = patternScale();
     if (state.atlas) { buildAtlas(g); seedAtlas(g); } else g.seed(7);
     return g;
+  }
+  function applyCGLPreset(s, i) {
+    var p = CGL_PRESETS[i]; state.cb = p.b; state.cc = p.c;
+    state.preset = state.setup = i; s.seed(i);
   }
   function heartParams() {
     return { a: HP_FIXED.a, eps: HP_FIXED.eps, dt: HP_FIXED.dt, D: HP_FIXED.D, b: state.hb, rec: state.hrec };
@@ -1870,6 +1891,7 @@ function hueRGB(hue) {
     if (!gl || !sim) return;
     var r = canvas.getBoundingClientRect();
     var dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(2.2e6 / Math.max(1, r.width * r.height)));
+    dpr *= audioRenderBudget.scale;
     var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
   }
@@ -1902,6 +1924,7 @@ function hueRGB(hue) {
   }
   // The backdrop behind the dish: the palette's own, unless the material insists on dark or on paper.
   function backdropFor(dark) {
+    if (state.chem === 'quantum' && state.qFloorColor) return { bg: state.qFloorColor, light: lum(state.qFloorColor) > 128 };
     var p = PALETTES[state.palette], mt = MATERIALS[state.material];
     if (mt.dark) return { bg: p.lineage ? p.bgDark : darkestStop(p), light: false };
     if (mt.paper) return { bg: PAPER, light: true };
@@ -1910,7 +1933,15 @@ function hueRGB(hue) {
   }
   function applyStageBackground() {
     stage.style.background = backdropFor(isDark()).bg;
+    $('qFloorColor').value = state.qFloorColor || backdropFor(isDark()).bg;
   }
+  function saveQuantumFloor() {
+    try { localStorage.setItem('garden.quantumFloor', JSON.stringify({ color: state.qFloorColor, grid: state.qFloorGrid })); } catch (e) {}
+    applyStageBackground();
+  }
+  $('qFloorColor').addEventListener('input', function () { state.qFloorColor = this.value; saveQuantumFloor(); });
+  $('qFloorGrid').addEventListener('change', function () { state.qFloorGrid = this.checked; saveQuantumFloor(); });
+  $('qFloorReset').addEventListener('click', function () { state.qFloorColor = null; saveQuantumFloor(); });
   function setMaterial(idx) {
     state.material = idx;
     try { localStorage.setItem('garden.material', MATERIALS[idx].name); } catch (e) {}
@@ -2011,6 +2042,7 @@ uniform float uLutFlip;
 uniform float uBeat;
 uniform float uHue;
 uniform float uHeart;
+uniform int uQFloorGrid;
 uniform vec2 uTilt;
 uniform int uLight;        // 0 the room's own lights, 1 lamps over the dish, 2 a low sun going round
 uniform vec4 uLamp[3];     // a lamp: where it hangs over the dish (uv), its height in cells, and 1 if it is on
@@ -2349,6 +2381,28 @@ vec3 filterOf(vec4 c, float b) {
 float gridAt(vec2 p) {
   vec2 f = abs(fract(p * 0.2) - 0.5) * 5.0;
   return 1.0 - smoothstep(0.1, 0.45, min(f.x, f.y));
+}
+vec3 quantumFloor(vec2 p) {
+  float line = uQFloorGrid == 1 ? gridAt(p * 0.5) * 0.55 : 0.0;
+  return mix(uBg, mix(uBg + vec3(0.10), uBg * 0.72, uLightTheme), line);
+}
+vec3 quantumGlass(vec2 uv, vec3 floorColour) {
+  vec2 texel = 1.0 / uTexSize;
+  float l = smoothstep(0.3, 0.8, -texture(uField, uv - vec2(texel.x, 0.0)).a);
+  float r = smoothstep(0.3, 0.8, -texture(uField, uv + vec2(texel.x, 0.0)).a);
+  float d = smoothstep(0.3, 0.8, -texture(uField, uv - vec2(0.0, texel.y)).a);
+  float t = smoothstep(0.3, 0.8, -texture(uField, uv + vec2(0.0, texel.y)).a);
+  vec2 slope = vec2(l - r, d - t);
+  float bevel = clamp(length(slope), 0.0, 1.0);
+  vec3 normal = normalize(vec3(slope * 2.5, 1.0));
+  vec3 view = normalize(vec3(uTilt * 0.25, 1.0));
+  float fresnel = 0.04 + 0.96 * pow(1.0 - max(dot(normal, view), 0.0), 5.0);
+  vec3 through = quantumFloor(uv * uTexSize + normal.xy * 2.6);
+  through = mix(floorColour, through, 0.85) * vec3(0.88, 0.97, 1.0);
+  vec3 reflected = texture(uShellEnvironment, reflect(-view, normal)).rgb;
+  float edgeLight = 0.35 + 0.65 * max(dot(normal, normalize(vec3(-0.6, 0.8, 1.0))), 0.0);
+  return mix(through, reflected, fresnel + bevel * 0.13) +
+    vec3(0.65, 0.88, 1.0) * bevel * edgeLight * 0.48;
 }
 // Interpolate lattice slices so the heat rolls through the height of each dome.
 float lavaNoise(vec3 p) {
@@ -2804,11 +2858,14 @@ void main() {
       float rough = 0.7 + 0.3 * vnoise(gl_FragCoord.xy * 0.35);
       bg = mix(bg, mix(uBg * 2.2 + 0.05, uBg * 0.72, lt) * rough, scar);
     } else if (uHeart < 2.5) {
+      bg = quantumFloor(vUv * uTexSize) * (1.0 - shadow * 0.3);
       // a smooth potential shows as a bowl: deeper where the particle would rather be
       float pot = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);
       bg = mix(bg, mix(bg * 0.45 + vec3(0.02, 0.03, 0.05), bg * 0.8, lt), pot);
-      // walls: hard, smooth, pale
-      bg = mix(bg, mix(uBg * 2.6 + 0.12, uBg * 0.62, lt), scar);
+      // Clear slabs transmit the floor; their bevels reflect the studio light.
+      float wallShadow = smoothstep(0.3, 0.8, -texture(uField, vUv - vec2(1.5, -1.5) / uTexSize).a);
+      bg *= 1.0 - wallShadow * (1.0 - scar) * 0.2;
+      if (scar > 0.0) bg = mix(bg, quantumGlass(vUv, bg), scar);
     } else {
       // food: a pool of what the mould eats, in its own colour, deeper while there is more of it
       float fd = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);
@@ -2880,7 +2937,7 @@ void main() {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      ['uField', 'uLut', 'uShellPebbles', 'uShellEnvironment', 'uAmberSurface', 'uTexSize', 'uBg', 'uLightTheme', 'uLineage', 'uGlow', 'uBump', 'uMat', 'uTime', 'uLutFlip', 'uBeat', 'uHue', 'uHeart', 'uTilt', 'uLight', 'uLamp', 'uLampCol', 'uLampR', 'uSun', 'uSunCol', 'uPass', 'uHeight'].forEach(function (n) { glU[n] = gl.getUniformLocation(prog, n); });
+      ['uField', 'uLut', 'uShellPebbles', 'uShellEnvironment', 'uAmberSurface', 'uTexSize', 'uBg', 'uLightTheme', 'uLineage', 'uGlow', 'uBump', 'uMat', 'uTime', 'uLutFlip', 'uBeat', 'uHue', 'uHeart', 'uQFloorGrid', 'uTilt', 'uLight', 'uLamp', 'uLampCol', 'uLampR', 'uSun', 'uSunCol', 'uPass', 'uHeight'].forEach(function (n) { glU[n] = gl.getUniformLocation(prog, n); });
       gl.uniform1i(glU.uField, 0);
       gl.uniform1i(glU.uLut, 1);
       gl.uniform1i(glU.uHeight, 2);
@@ -2946,6 +3003,7 @@ void main() {
     gl.uniform1f(glU.uHue, music.hueAng);
     gl.uniform1i(glU.uMat, MATERIALS[state.material].id);
     gl.uniform1f(glU.uHeart, sim.kind === 'heart' ? 1 : sim.kind === 'quantum' ? 2 : sim.kind === 'mould' ? 3 : 0);
+    gl.uniform1i(glU.uQFloorGrid, state.qFloorGrid ? 1 : 0);
     gl.uniform2f(glU.uTilt, state.tilt.x, state.tilt.y);
     gl.uniform1f(glU.uTime, (performance.now() % 3600000) / 1000);
     gl.uniform1f(glU.uLutFlip, !p.lineage && lum(p.stops[0][1]) > lum(p.stops[p.stops.length - 1][1]) ? 1 : 0);
@@ -3063,6 +3121,10 @@ void main() {
   function emptyDish(s) { var R = s.R, G = s.G, B = s.Bl; for (var i = 0; i < R.length; i++) if (R[i] + G[i] + B[i] > 0.02) return false; return true; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
   function frame(now) {
+    var beforeScale = audioRenderBudget.scale;
+    audioRenderBudget.sample(previousFrameTime ? now - previousFrameTime : 0, !!gl && music.on && !document.hidden);
+    previousFrameTime = now;
+    if (audioRenderBudget.scale !== beforeScale) fitCanvas();
     if (!sim) setupGrid();
     if (sim && !glLost) {
       var fL = state.f, kL = state.k, target = state.steps;
@@ -3090,6 +3152,8 @@ void main() {
         } else if (sim.kind === 'quantum') {
           sim.step(quantumParams(), state.stepsEff);
           drawScreen();
+        } else if (sim.kind === 'cgl') {
+          sim.step({ b: state.cb, c: state.cc }, Math.max(1, Math.round(state.stepsEff * 0.5)));
         } else if (sim.kind === 'mould') {
           sim.step(mouldParams(), Math.max(1, Math.round(state.stepsEff * 0.4)));
           ecgBuf[ecgAt] = sim.ecg; ecgAt = (ecgAt + 1) % ecgBuf.length;
@@ -3234,7 +3298,10 @@ void main() {
   [feedIn, killIn, speedIn, $('bpm')].forEach(function (el) { el.addEventListener('input', function () { fill(el); }); });
   function syncUI() {
     var isHeart = state.chem === 'heart';
-    if (state.chem === 'quantum') {
+    if (state.chem === 'cgl') {
+      feedIn.value = state.cb; killIn.value = state.cc;
+      feedOut.value = state.cb.toFixed(2); killOut.value = state.cc.toFixed(2);
+    } else if (state.chem === 'quantum') {
       feedIn.value = state.qV0; killIn.value = state.qSigma;
       feedOut.value = state.qV0.toFixed(2); killOut.value = state.qSigma.toFixed(1);
     } else if (isHeart) {
@@ -3294,7 +3361,7 @@ void main() {
   }
 
   // ---- chemistry: the garden, the heart or the quantum dish ----
-  function presetList() { return state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : state.chem === 'mould' ? MPRESETS : state.chem === 'current' ? PRESETS.filter(function (p) { return !p.atlas; }) : PRESETS; }
+  function presetList() { return state.chem === 'cgl' ? CGL_PRESETS : state.chem === 'heart' ? HPRESETS : state.chem === 'quantum' ? QPRESETS : state.chem === 'mould' ? MPRESETS : state.chem === 'current' ? PRESETS.filter(function (p) { return !p.atlas; }) : PRESETS; }
   function buildPresets() {
     var list = presetList(), host = $('presets');
     while (host.firstChild) host.removeChild(host.firstChild);
@@ -3302,7 +3369,8 @@ void main() {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'chip'; b.textContent = p.name; b.setAttribute('aria-pressed', 'false');
       b.addEventListener('click', function () {
-        if (state.chem === 'heart') { if (sim) applyHeartPreset(sim, i); syncUI(); }
+        if (state.chem === 'cgl') { if (sim) applyCGLPreset(sim, i); syncUI(); }
+        else if (state.chem === 'heart') { if (sim) applyHeartPreset(sim, i); syncUI(); }
         else if (state.chem === 'quantum') { if (sim) applyQuantumPreset(sim, i); syncUI(); }
         else if (state.chem === 'mould') { if (sim) applyMouldPreset(sim, i); syncUI(); }
         else { if (p.atlas && state.atlas && sim && sim.kind === 'garden') { sim.clear(); seedAtlas(sim); } setParams(p.f, p.k, i); }
@@ -3313,17 +3381,22 @@ void main() {
   function setChemistry(kind) {
     var C = CHEMS[kind], isHeart = kind === 'heart', isQ = kind === 'quantum', isM = kind === 'mould';
     state.chem = kind;
+    $('quantumFloor').hidden = kind !== 'quantum';
+    applyStageBackground();
     state.preset = 0;
     var chips = $('chem').querySelectorAll('.chip');
     for (var i = 0; i < chips.length; i++) chips[i].setAttribute('aria-pressed', chips[i].getAttribute('data-chem') === kind ? 'true' : 'false');
     $('lede').textContent = C.lede;
     $('lab1').textContent = C.lab1; $('lab2').textContent = C.lab2;
-    if (isHeart) { feedIn.min = 0.01; feedIn.max = 0.12; feedIn.step = 0.001; killIn.min = 0.15; killIn.max = 0.8; killIn.step = 0.01; }
+    if (kind === 'cgl') { feedIn.min = killIn.min = -2; feedIn.max = killIn.max = 2; feedIn.step = killIn.step = 0.05; }
+    else if (isHeart) { feedIn.min = 0.01; feedIn.max = 0.12; feedIn.step = 0.001; killIn.min = 0.15; killIn.max = 0.8; killIn.step = 0.01; }
     else if (isQ) { feedIn.min = 0.05; feedIn.max = 1.5; feedIn.step = 0.01; killIn.min = 4; killIn.max = 20; killIn.step = 0.5; }
     else if (isM) { feedIn.min = 3; feedIn.max = 16; feedIn.step = 0.5; killIn.min = 0.02; killIn.max = 0.25; killIn.step = 0.005; }
     else { feedIn.min = F_MIN; feedIn.max = F_MAX; feedIn.step = 0.0001; killIn.min = K_MIN; killIn.max = K_MAX; killIn.step = 0.0001; }
     // SVG elements have no hidden property, so the attribute is set by hand
-    if (C.trace === 'map') { mapEl.removeAttribute('hidden'); $('ecg').setAttribute('hidden', ''); }
+    document.querySelector('.mapwrap').hidden = C.trace === 'none';
+    if (C.trace === 'none') { mapEl.setAttribute('hidden', ''); $('ecg').setAttribute('hidden', ''); }
+    else if (C.trace === 'map') { mapEl.removeAttribute('hidden'); $('ecg').setAttribute('hidden', ''); }
     else { mapEl.setAttribute('hidden', ''); $('ecg').removeAttribute('hidden'); }
     $('capMap').hidden = C.trace !== 'map'; $('capEcg').hidden = C.trace !== 'ecg'; $('capScreen').hidden = C.trace !== 'screen'; $('capMass').hidden = C.trace !== 'mass';
     $('bpmWrap').hidden = !C.pace; $('paceBtn').hidden = !C.pace;
@@ -3337,6 +3410,7 @@ void main() {
     showHint(C.hint, 6000);
     buildPresets();
     state.atlas = false; revive = false; if (flow) flow.clear();
+    if (kind === 'cgl') { state.setup = 0; state.cb = CGL_PRESETS[0].b; state.cc = CGL_PRESETS[0].c; }
     if (sim) { sim = null; setupGrid(); }   // on its own grid: the heart, the quantum dish and the mould zoom out on a finer one
     if (kind === 'garden') { state.preset = 0; state.f = PRESETS[0].f; state.k = PRESETS[0].k; }
     ecgBuf.fill(0);
@@ -3376,13 +3450,15 @@ void main() {
     else { sim.fMap = null; sim.kMap = null; }
   }
   feedIn.addEventListener('input', function () {
-    if (state.chem === 'heart') { state.hb = parseFloat(feedIn.value); state.preset = -1; syncUI(); }
+    if (state.chem === 'cgl') { state.cb = parseFloat(feedIn.value); state.preset = -1; syncUI(); }
+    else if (state.chem === 'heart') { state.hb = parseFloat(feedIn.value); state.preset = -1; syncUI(); }
     else if (state.chem === 'quantum') { state.qV0 = parseFloat(feedIn.value); syncUI(); }
     else if (state.chem === 'mould') { state.mso = parseFloat(feedIn.value); state.preset = -1; syncUI(); }
     else setParams(parseFloat(feedIn.value), state.k);
   });
   killIn.addEventListener('input', function () {
-    if (state.chem === 'heart') { state.hrec = parseFloat(killIn.value); state.preset = -1; syncUI(); }
+    if (state.chem === 'cgl') { state.cc = parseFloat(killIn.value); state.preset = -1; syncUI(); }
+    else if (state.chem === 'heart') { state.hrec = parseFloat(killIn.value); state.preset = -1; syncUI(); }
     else if (state.chem === 'quantum') { state.qSigma = parseFloat(killIn.value); syncUI(); }
     else if (state.chem === 'mould') { state.mdecay = parseFloat(killIn.value); state.preset = -1; syncUI(); }
     else setParams(state.f, parseFloat(killIn.value));
@@ -3517,6 +3593,7 @@ void main() {
     if (sim.kind === 'heart') { sim.shock(); music.beat = 1; }
     else if (sim.kind === 'quantum') { setRewind(false); sim.seed(4); }
     else if (sim.kind === 'mould') sim.seed(6);
+    else if (sim.kind === 'cgl') sim.seed(state.setup);
     else sim.seed(7);
   });
 
@@ -3871,7 +3948,8 @@ void main() {
     if (!music.actx) {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return false;
-      music.actx = new AC();
+      // Playback headroom is more useful here than an instrument's minimum latency.
+      music.actx = new AC({ latencyHint: 'playback' });
       music.analyser = music.actx.createAnalyser();
       music.analyser.fftSize = 2048;
       music.analyser.smoothingTimeConstant = 0.35;
@@ -4042,6 +4120,10 @@ void main() {
   }
   function plant(strength) {
     if (!sim) return;
+    if (sim.kind === 'cgl') {
+      sim.paint(Math.random() * sim.w, Math.random() * sim.h, brushRadius() * (0.7 + strength), false, huePigment(music.hue));
+      music.flash = 1; return;
+    }
     if (sim.kind === 'heart') { fireNode(performance.now()); return; }   // the heart beats to the kick
     if (sim.kind === 'quantum') {                                          // the kick throws a particle
       if (sim.reversed) { music.flash = 1; return; }                       // but not while time runs backwards
@@ -4527,7 +4609,14 @@ void main() {
   }
   function beatTick() {
     var ac = music.actx, B = BEATS[beats.idx], st = 60 / B.bpm / 4;
-    while (beats.nextT < ac.currentTime + 0.16) {
+    // A late UI frame must not start a backlog of past notes all at once.
+    // Leave room for negative humanization offsets and keep the original beat grid.
+    var earliest = ac.currentTime + 0.035;
+    if (beats.nextT < earliest) {
+      var missed = Math.ceil((earliest - beats.nextT) / st);
+      beats.step += missed; beats.nextT += missed * st;
+    }
+    while (beats.nextT < ac.currentTime + 0.35) {
       scheduleStep(beats.step, beats.nextT);
       beats.step++;
       beats.nextT += st;
@@ -4569,6 +4658,9 @@ void main() {
   }
   function pauseBeat() {
     if (!beats.on) return;
+    // Resume at the next audible step, not beyond the look-ahead queue we retire.
+    var st = 60 / BEATS[beats.idx].bpm / 4;
+    beats.step -= Math.min(beats.step, Math.max(0, Math.floor((beats.nextT - music.actx.currentTime) / st)));
     silenceBeat();
     beats.on = false; beats.paused = true;
     setMusicOn(false);
@@ -4628,6 +4720,129 @@ void main() {
   }
 
   // BEGIN GARDEN UPDATE
+// Protect playback when the shared CPU/GPU cannot keep up with the scene.
+// Only drawing resolution changes; simulation fields and musical time are untouched.
+function createAudioRenderBudget() {
+  var average = 16.7, elapsed = 0;
+  return {
+    scale: 1,
+    sample: function (milliseconds, playing) {
+      if (!playing) { this.scale = 1; average = 16.7; elapsed = 0; return this.scale; }
+      if (!Number.isFinite(milliseconds) || milliseconds <= 0 || milliseconds > 1000) return this.scale;
+      average += (milliseconds - average) * 0.1; elapsed += milliseconds;
+      if (average > 40 && elapsed >= 1000) {
+        this.scale = Math.max(0.4, this.scale * 0.8); elapsed = 0;
+      } else if (average < 22 && elapsed >= 5000) {
+        this.scale = Math.min(1, this.scale + 0.05); elapsed = 0;
+      }
+      return this.scale;
+    }
+  };
+}
+// Cubic Complex Ginzburg–Landau: A_t = A + (1+i*b) ΔA - (1+i*c)|A|²A.
+// U/V are the physical complex field; R/G/Bl are only its surface visualization.
+// Periodic five-point Laplacian, explicit midpoint; UI limits |b|,|c| <= 2, dt=.04.
+var CGL_PRESETS = [
+  { name: 'Spiral Bloom', b: 0.3, c: 1.4 },
+  { name: 'Wave Garden', b: 0.8, c: 0.4 },
+  { name: 'Phase Storm', b: 1.6, c: -1.2 }
+];
+
+function createCGL(w, h) {
+  const n = w * h, tau = Math.PI * 2;
+  const sim = { kind: 'cgl', w, h, time: 0,
+    U: new Float32Array(n), V: new Float32Array(n),
+    R: new Float32Array(n), G: new Float32Array(n), Bl: new Float32Array(n), A: new Float32Array(n) };
+  const midU = new Float32Array(n), midV = new Float32Array(n);
+  const left = new Int32Array(w), right = new Int32Array(w);
+  for (let x = 0; x < w; x++) { left[x] = (x + w - 1) % w; right[x] = (x + 1) % w; }
+  sim.A.fill(1);
+
+  // Evaluate at u/v, adding the derivative to the start of the time step.
+  function advance(u, v, outU, outV, b, c, dt) {
+    for (let y = 0; y < h; y++) {
+      const row = y * w, up = ((y + h - 1) % h) * w, down = ((y + 1) % h) * w;
+      for (let x = 0; x < w; x++) {
+        const i = row + x, a = u[i], z = v[i], rho = a * a + z * z;
+        const lu = u[row + left[x]] + u[row + right[x]] + u[up + x] + u[down + x] - 4 * a;
+        const lv = v[row + left[x]] + v[row + right[x]] + v[up + x] + v[down + x] - 4 * z;
+        outU[i] = sim.U[i] + dt * (a + lu - b * lv - rho * (a - c * z));
+        outV[i] = sim.V[i] + dt * (z + lv + b * lu - rho * (z + c * a));
+      }
+    }
+  }
+  sim.step = function (p, steps) {
+    const dt = p.dt === undefined ? 0.04 : p.dt;
+    for (let s = 0; s < steps; s++) {
+      advance(sim.U, sim.V, midU, midV, p.b, p.c, dt / 2);
+      // Midpoint reads only its temporary field, so writing U/V here is safe.
+      advance(midU, midV, sim.U, sim.V, p.b, p.c, dt);
+      sim.time += dt;
+    }
+    sim.updateDisplay();
+  };
+  sim.updateDisplay = function () {
+    for (let i = 0; i < n; i++) {
+      const a = sim.U[i], z = sim.V[i], amplitude = Math.hypot(a, z);
+      if (amplitude < 1e-8) { sim.R[i] = sim.G[i] = sim.Bl[i] = 0; continue; }
+      const phase = Math.atan2(z, a), crest = 0.5 + 0.5 * a / amplitude;
+      const height = 0.38 * Math.min(amplitude, 1) * (0.04 + 0.96 * crest * crest);
+      const r = 0.55 + 0.45 * Math.cos(phase);
+      const g = 0.55 + 0.45 * Math.cos(phase - tau / 3);
+      const b = 0.55 + 0.45 * Math.cos(phase + tau / 3), scale = height / (r + g + b);
+      sim.R[i] = r * scale; sim.G[i] = g * scale; sim.Bl[i] = b * scale;
+    }
+  };
+  sim.clear = function () {
+    sim.U.fill(0); sim.V.fill(0); sim.R.fill(0); sim.G.fill(0); sim.Bl.fill(0); sim.time = 0;
+  };
+  sim.seed = function (preset = 0, rng = Math.random) {
+    sim.clear();
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x, X = tau * x / w, Y = tau * y / h;
+      let phase, amplitude;
+      if (preset === 2) {
+        phase = rng() * tau; amplitude = 0.25 + 0.25 * rng();
+      } else if (preset === 1) {
+        phase = 3 * X + 2 * Y + 0.8 * Math.sin(Y); amplitude = 0.95;
+      } else {
+        const sx = Math.sin(X), sy = Math.sin(Y), radius = Math.hypot(sx, sy);
+        phase = Math.atan2(sy, sx) - radius * Math.min(w, h) / 12;
+        amplitude = Math.tanh(radius * Math.min(w, h) / 8);
+      }
+      sim.U[i] = amplitude * Math.cos(phase); sim.V[i] = amplitude * Math.sin(phase);
+    }
+    sim.updateDisplay();
+  };
+  sim.paint = function (cx, cy, radius, erase, pigment) {
+    const phase = pigment ? Math.atan2(pigment[1] - pigment[2], 2 * pigment[0] - pigment[1] - pigment[2]) : sim.time;
+    const a = 0.95 * Math.cos(phase), z = 0.95 * Math.sin(phase);
+    for (let y = Math.floor(cy - radius); y <= Math.ceil(cy + radius); y++) {
+      for (let x = Math.floor(cx - radius); x <= Math.ceil(cx + radius); x++) {
+        const d = ((x - cx) ** 2 + (y - cy) ** 2) / (radius * radius);
+        if (d >= 1) continue;
+        const weight = (1 - d) ** 2, i = ((y % h + h) % h) * w + (x % w + w) % w;
+        sim.U[i] += ((erase ? 0 : a) - sim.U[i]) * weight;
+        sim.V[i] += ((erase ? 0 : z) - sim.V[i]) * weight;
+      }
+    }
+    sim.updateDisplay();
+  };
+  sim.resample = function (nw, nh) {
+    const next = createCGL(nw, nh);
+    for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {
+      const sx = x * w / nw, sy = y * h / nh, x0 = Math.floor(sx), y0 = Math.floor(sy);
+      const fx = sx - x0, fy = sy - y0, x1 = (x0 + 1) % w, y1 = (y0 + 1) % h;
+      for (const name of ['U', 'V']) {
+        const a = sim[name];
+        next[name][y * nw + x] = (1 - fy) * ((1 - fx) * a[y0 * w + x0] + fx * a[y0 * w + x1]) +
+          fy * ((1 - fx) * a[y1 * w + x0] + fx * a[y1 * w + x1]);
+      }
+    }
+    next.time = sim.time; next.updateDisplay(); return next;
+  };
+  return sim;
+}
 // Liquid Current: prescribed transport plus the existing Gray-Scott chemistry.
 // This is an artistic flow field, not a complete Navier-Stokes solver.
 function bilerpWrap(arr, x, y, w, h) {
@@ -5187,6 +5402,14 @@ function createCurrent(w, h) {
   // ---- go ----
   // the dish, the colours and the material from last time, read before anything below saves its own
   var saved = {};
+  try {
+    var floorPrefs = JSON.parse(localStorage.getItem('garden.quantumFloor') || 'null');
+    if (floorPrefs) {
+      if (typeof floorPrefs.color === 'string' && /^#[0-9a-f]{6}$/i.test(floorPrefs.color)) state.qFloorColor = floorPrefs.color;
+      if (typeof floorPrefs.grid === 'boolean') state.qFloorGrid = floorPrefs.grid;
+    }
+  } catch (e) {}
+  $('qFloorGrid').checked = state.qFloorGrid;
   try { saved = { chem: localStorage.getItem('garden.chem'), palette: localStorage.getItem('garden.palette'), material: localStorage.getItem('garden.material') }; } catch (e) {}
   if (saved.material === 'Electricity') saved.material = 'Voronesque Gem';
   if (saved.material === 'Fire') saved.material = 'Lava';

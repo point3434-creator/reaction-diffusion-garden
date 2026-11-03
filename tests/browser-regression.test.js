@@ -6,7 +6,7 @@ const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8')
   .replace(/<link[^>]*>/g, '')
-  .replace('  // ---- go ----', 'window.audit = { state, getSim: () => sim, frame, seedFromImage, getPainting: () => painting }; \n  // ---- go ----');
+  .replace('  // ---- go ----', 'window.audit = { state, getSim: () => sim, frame, seedFromImage, getPainting: () => painting, audioRenderBudget, fitCanvas, ensureCtx, music }; \n  // ---- go ----');
 let browser;
 test.before(async () => {
   const options = { headless: true };
@@ -40,6 +40,27 @@ async function open(t, mode = '2d') {
   });
   return { page, errors };
 }
+
+test('audio headroom reduces only the drawing buffer and restores it without resizing the simulation', async t => {
+  const { page, errors } = await open(t, 'webgl');
+  const result = await page.evaluate(() => {
+    const a = window.audit, canvas = document.querySelector('#view'), sim = a.getSim();
+    const initial = canvas.width;
+    for (let i = 0; i < 100; i++) a.audioRenderBudget.sample(80, true);
+    a.fitCanvas(); const reduced = canvas.width;
+    const sameSim = sim === a.getSim();
+    a.audioRenderBudget.sample(16.7, false); a.fitCanvas();
+    let requested;
+    window.AudioContext = new Proxy(window.AudioContext, { construct(Target, args) { requested = args[0]; return new Target(...args); } });
+    a.ensureCtx();
+    return { initial, reduced, restored: canvas.width, sameSim, requested, audioState: a.music.actx.state };
+  });
+  assert.ok(result.reduced < result.initial / 2);
+  assert.equal(result.restored, result.initial); assert.equal(result.sameSim, true);
+  assert.equal(result.requested.latencyHint, 'playback');
+  assert.ok(['running', 'suspended'].includes(result.audioState));
+  assert.deepEqual(errors, []);
+});
 
 test('Current photo seeds the dish from a decoded image', async t => {
   const { page, errors } = await open(t);

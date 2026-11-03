@@ -42,6 +42,20 @@ async function withSynth(check) {
   } finally { await page.close(); }
 }
 
+test('a delayed scheduler skips overdue notes instead of bursting them together', () => withSynth(async page => {
+  const result = await page.evaluate(() => {
+    startBeat(5); clearInterval(beats.timer);
+    const calls = []; scheduleStep = (step, time) => calls.push({ step, time });
+    beats.nextT = music.actx.currentTime - 1.5; beats.step = 0;
+    const now = music.actx.currentTime, originalNext = beats.nextT;
+    beatTick();
+    return { calls, now, originalNext, stepDuration: 60 / BEATS[5].bpm / 4 };
+  });
+  assert.ok(result.calls.length > 0 && result.calls.length < 8, 'only the future scheduling window is queued');
+  assert.ok(result.calls.every(c => c.time >= result.now + 0.025), 'humanized notes retain enough future headroom');
+  for (const c of result.calls) assert.ok(Math.abs(c.time - (result.originalNext + c.step * result.stepDuration)) < 1e-8, 'recovery keeps the musical grid');
+}));
+
 test('pausing freezes the sequence and resuming continues the selected beat', () => withSynth(async page => {
   assert.equal(await page.evaluate(() => typeof pauseBeat), 'function');
   assert.equal(await page.evaluate(() => typeof resumeBeat), 'function');
