@@ -1,6 +1,6 @@
 # Reaction–diffusion garden
 
-Three physics simulations and a slime mould in one dish, painted with a finger, lit by thirteen materials, and driven by sound.
+Three physics simulations and a slime mould in one dish, painted with a finger, lit by seventeen materials, and driven by sound.
 
 It started as a toy for Turing patterns: two chemicals, two rules, every pattern on a leopard. It grew a heart, a Schrödinger equation, a slime mould, a studio's worth of surface materials, six original beats, a phone build, and a glass panel to hold it all. Everything runs on the device, in one HTML file, with no servers, no accounts, and nothing sent anywhere.
 
@@ -14,7 +14,7 @@ It started as a toy for Turing patterns: two chemicals, two rules, every pattern
 
 **Mould** is Jeff Jones's agent model of *Physarum polycephalum*, the slime mould that grew the Tokyo rail map. Thousands of agents each look ahead at three points, turn toward the strongest trail, step, and lay trail where they land; the trail blurs and fades every step, so veins are the paths enough agents keep agreeing on. It is the garden's recipe turned inside out: short range, go where the others went; long range, forget. Paint food in a colour and the mould finds it by its scent, and the veins that feed on it take that colour; paint walls and it finds the way round; seed from a photo and the network grows into the picture in the picture's own hues. Reach sets how far the agents sense, which is the mesh size; fade sets how fast trail goes. Presets: Forage, Railway (a colony on the station and food where the towns are), Veins, Hyphae and Cells.
 
-**Materials.** One height map is lit thirteen ways: Glass, Quicksilver, Velvet, Wax, Neon, Lava, Ice, Electricity, Contour, Iridescent, Prism, Watercolour and Letterpress. Lava has rolling red-orange turbulence, dark molten pockets and yellow-white hot ridges; electricity sends thin blue and yellow filaments over each blob. Lava, ice, electricity, contour and the iridescent film are animated; the prism bends blue more than red through graph paper under the dish. On a phone, tilting it moves the lights.
+**Materials.** One height map is lit seventeen ways: Glass, Black Opal, Crystal Shell, Gold Ripple, Amber Flow, Quicksilver, Velvet, Wax, Neon, Lava, Ice, Voronesque Gem, Contour, Iridescent, Prism, Watercolour and Letterpress. Black Opal has smooth polished domes, a charcoal body, and layered irregular play-of-color that responds to the light. Crystal Shell adapts Aiekick's Ray Marching Experiment 43: a displaced purple shell opens onto a green inner layer, with reflection and refraction from the original studio cubemap. Its original pebble texture and all six cubemap faces are embedded for offline use; the layers follow the garden height field rather than a separate ray-marched sphere. Gold Ripple adapts the supplied Liquid Gold demo, with flowing domain-warped noise, warm metallic reflections and softened fine ripples for small blobs. Amber Flow adapts Aiekick's Ray Marching Experiment 35, with its original animated surface texture, smoky amber colors, displaced reflections and shared studio cubemap; it is embedded for offline use. Voronesque Gem replaces Electricity with Aiekick's reflective rainbow cells, built from Shane's Voronesque function and two displaced layers; saved Electricity selections migrate automatically. These five materials keep their own colors independently of the pigment palette; Black Opal's pattern stays fixed under fixed lighting while the shell layers drift. Lava has rolling red-orange turbulence, dark molten pockets and yellow-white hot ridges. Crystal Shell, Gold Ripple, Amber Flow, Voronesque Gem, lava, ice, contour and the iridescent film are animated; the prism bends blue more than red through graph paper under the dish. On a phone, tilting it moves the lights.
 
 **Keep.** Save picture saves the dish as a PNG at the size it is drawn; Record makes a video of it, with whatever the dish is listening to as the soundtrack (an MP4 where the browser can make one, otherwise WebM, up to five minutes). Both are named after the dish and the preset, and both stay on the device.
 
@@ -50,34 +50,13 @@ tools/              calibration scripts for the models, an offline renderer for 
 
 The simulations run on the CPU in plain JavaScript on a grid of a few hundred cells a side; the renderer is WebGL 2, with a flat 2D fallback. There are no dependencies at runtime.
 
-## Path tracing
-
-In **Look → Rendering**, choose **Path traced** for sampled reflections,
-refraction, colored glass absorption and indirect light. **Pause & refine** pauses
-the dish and sound so the image becomes clearer as samples accumulate. You can
-still paint, change materials or move lamps while paused; each change starts a
-fresh image. **Preview** traces six bounces at a lower resolution; **Fine** traces
-eight with a larger image. Save picture captures the displayed result as usual.
-
-Moving or sound-reactive scenes use a smaller, grainier live preview. A still can
-refine to 4,096 samples; its sun stays fixed while paused. Real-time remains the
-default on every visit, and you can switch back at any time. Unsupported devices
-keep the existing WebGL or flat renderer. Path tracing needs WebGL 2 with floating
-point render targets and adds GPU work; it does not move the simulation to the GPU.
-
-This is a finite-heightfield path tracer with simplified material models. Prism
-uses refracting glass and graph paper, but does not split wavelengths; Ice and
-Iridescent use clear dielectric approximations, and Wax uses a diffuse surface.
-Fine refractive caustics can take many samples to settle. The implementation and
-its limits are described in [docs/path-tracing.md](docs/path-tracing.md).
-
 ## Running it
 
 Open `web/index.html`. Everything works from a local file except the microphone and screen sharing, which browsers allow only on `https` pages and on files opened directly in Chrome.
 
 Size, in the Look tab, sets how big the patterns grow: Large, Medium or Small, with the dish always filling the window. In the garden, a smaller size slows diffusion instead of adding cells (by the square of the scale, which shrinks every length in the pattern by the scale), so it costs nothing to run; much below half size, spots and stripes are only a few cells across and lock to the grid's square cells. Seeds, the brush and photo dots shrink with the pattern. A growing garden reshapes itself to a new size, except from Large to Small: full-size spots would starve at half size, so the dish is redrawn at half size at once, twice over each way. The heart's wave fronts, the quantum dish's waves and the mould's veins are already only a few cells across, and slowing them down would push them below what the grid can hold (the heart's waves stop spreading at the top of the threshold slider), so these three zoom out on a finer grid instead: Medium has about twice the cells and Small four times, so a step at Small takes about four times the work, and a slow machine takes fewer steps a frame to keep up. A new size starts them again on the new grid, set up as their last preset set them up, with the sliders where they were.
 
-Light, also in the Look tab, chooses what lights the dish. Studio is the room's own light, as it always was; on a phone, tilting it moves the light. Lamp hangs one warm lamp over the dish and Stage three coloured ones, red, green and blue; drag a lamp to move it, and the lamp height slider sets how high they hang, so a low lamp lights a small pool and throws long shadows. Sun is a low sun that goes round the dish once every 48 seconds, rising and sinking between 11 and 37 degrees. Under lamps and the sun the shadows are ray-traced: the dish is a height map, and every pixel follows a ray toward each light, in up to 21 steps that start a third of a cell apart and grow by a fifth each time, to see whether a dome rises into it, softening the shadow's edge by how big the light looks from there. The rays read a smooth copy of the heights drawn first at twice the grid's resolution; read straight off the grid, every shadow's edge was ragged a cell at a time. Stage costs up to 63 extra texture reads a pixel, which a slow graphics chip may feel. Where all three stage lamps reach, they add up to about one lamp's white, so a dome that hides one of them throws a shadow in the colour of the other two. Glass, Prism, Ice, Wax and Iridescent let light through: a ray crossing one of their domes is tinted by the dome's colour and dimmed by how far it travels inside it (Beer and Lambert's law: each colour fades exponentially with the path, faster the less of it the dome lets through), so their shadows come out coloured. Glass and Prism also act as lenses, gathering the light toward the middle of the shadow and leaving its rim darker, and Prism bends blue a little further than red; Ice and Wax scatter the light, so their shadows are soft, and Wax lets the least through. To do this the copy of the heights also carries each dome's colour. The glowing materials (Neon, Lava, Electricity, Contour) keep most of their own light. The page remembers the size, the light, the lamps' places and height, the dish, the colours, the material and the tab from one visit to the next.
+Light, also in the Look tab, chooses what lights the dish. Studio is the room's own light, as it always was; on a phone, tilting it moves the light. Lamp hangs one warm lamp over the dish and Stage three coloured ones, red, green and blue; drag a lamp to move it, and the lamp height slider sets how high they hang, so a low lamp lights a small pool and throws long shadows. Sun is a low sun that goes round the dish once every 48 seconds, rising and sinking between 11 and 37 degrees. Under lamps and the sun the shadows are ray-traced: the dish is a height map, and every pixel follows a ray toward each light, in up to 21 steps that start a third of a cell apart and grow by a fifth each time, to see whether a dome rises into it, softening the shadow's edge by how big the light looks from there. The rays read a smooth copy of the heights drawn first at twice the grid's resolution; read straight off the grid, every shadow's edge was ragged a cell at a time. Stage costs up to 63 extra texture reads a pixel, which a slow graphics chip may feel. Where all three stage lamps reach, they add up to about one lamp's white, so a dome that hides one of them throws a shadow in the colour of the other two. Glass, Prism, Ice, Wax and Iridescent let light through: a ray crossing one of their domes is tinted by the dome's colour and dimmed by how far it travels inside it (Beer and Lambert's law: each colour fades exponentially with the path, faster the less of it the dome lets through), so their shadows come out coloured. Glass and Prism also act as lenses, gathering the light toward the middle of the shadow and leaving its rim darker, and Prism bends blue a little further than red; Ice and Wax scatter the light, so their shadows are soft, and Wax lets the least through. To do this the copy of the heights also carries each dome's colour. The glowing materials (Neon, Lava, Contour) keep most of their own light. The page remembers the size, the light, the lamps' places and height, the dish, the colours, the material and the tab from one visit to the next.
 
 To edit a model, the shader or the beats, change the file in `src/` and run `python3 tools/splice.py` to put it back into the page. `python3 tools/splice.py --check` tells you whether the page and `src/` agree.
 
@@ -98,12 +77,6 @@ The result is `android/build/garden.apk`, including about 28 MB of soundtrack re
 
 Run `npm run check` to verify the generated page and `npm test` for Current chemistry, browser recovery/input, soundtrack playback, and responsive UI regressions. Install the test browser with `npx playwright install chromium`. `python3 tests/android-assets.test.py` checks Android asset staging without requiring a full Android SDK; building and testing the APK on a device remains a separate check.
 
-`npm run test:pathtrace` exercises the optional renderer, accumulation, fallback
-and context recovery in a real WebGL browser. On Linux with Mesa/EGL available,
-`python3 tests/pathtrace-egl.test.py` independently checks actual shader geometry,
-Fresnel reflection, finite HDR output and accumulation. Native EGL checks supplement
-the browser tests; they do not measure hardware frame rate.
-
 ```
 npm install
 node tools/calibrate-heart.js      wave speed and width, spiral period, whether a shock quiets fibrillation
@@ -121,4 +94,4 @@ Alan Turing proposed reaction–diffusion as a mechanism for pattern formation i
 
 ## License
 
-MIT. See `LICENSE`.
+Original project code: MIT, with third-party exceptions for Crystal Shell, Amber Flow, and Voronesque Gem. Their shader adaptations are CC BY-NC-SA 3.0 (attribution, noncommercial, share-alike). See `LICENSE` and [third-party notices](THIRD_PARTY_NOTICES.md) for the source, credits, changes and texture provenance.

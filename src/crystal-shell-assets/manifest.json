@@ -1,0 +1,40 @@
+{
+  "shader": "https://www.shadertoy.com/view/lstXRl",
+  "files": [
+    {
+      "file": "pebbles.png",
+      "url": "https://www.shadertoy.com/media/a/ad56fba948dfba9ae698198c109e71f118a54d209c0ea50d77ea546abad89c57.png",
+      "sha256": "4d0c9886f97a362824c1e21d26ff40a16469564c4ad7e0ce73aab5b392541b04"
+    },
+    {
+      "file": "studio-px.png",
+      "url": "https://www.shadertoy.com/media/a/793a105653fbdadabdc1325ca08675e1ce48ae5f12e37973829c87bea4be3232.png",
+      "sha256": "d6cb1784b0fd52ead5a41f5edb18ca0d1caf38bfbec9ea628e1983e22269dae9"
+    },
+    {
+      "file": "studio-nx.png",
+      "url": "https://www.shadertoy.com/media/a/793a105653fbdadabdc1325ca08675e1ce48ae5f12e37973829c87bea4be3232_1.png",
+      "sha256": "32342c8606af700babce26c2a0f13cbb6288401f1fda3b2937b8a0b3b8a4a2cc"
+    },
+    {
+      "file": "studio-py.png",
+      "url": "https://www.shadertoy.com/media/a/793a105653fbdadabdc1325ca08675e1ce48ae5f12e37973829c87bea4be3232_2.png",
+      "sha256": "87044edb2c2912cb9cdee7d9a3be5c13b1ed8e2b2f91a7180e618a67c4a6e189"
+    },
+    {
+      "file": "studio-ny.png",
+      "url": "https://www.shadertoy.com/media/a/793a105653fbdadabdc1325ca08675e1ce48ae5f12e37973829c87bea4be3232_3.png",
+      "sha256": "61679f93ac5f06d4554b4387f64ca20148005d91396165c3648a8fcde9833d56"
+    },
+    {
+      "file": "studio-pz.png",
+      "url": "https://www.shadertoy.com/media/a/793a105653fbdadabdc1325ca08675e1ce48ae5f12e37973829c87bea4be3232_4.png",
+      "sha256": "f54ab56b0d0e22c692e1f81be95334046fa8a14aea9ba6425fc1184953bc7f13"
+    },
+    {
+      "file": "studio-nz.png",
+      "url": "https://www.shadertoy.com/media/a/793a105653fbdadabdc1325ca08675e1ce48ae5f12e37973829c87bea4be3232_5.png",
+      "sha256": "20169cde6c5b793cb98839b441e068ae9320b59d0767a35c768e2a7ca4be3bfa"
+    }
+  ]
+}
