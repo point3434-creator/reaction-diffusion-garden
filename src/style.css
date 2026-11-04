@@ -282,6 +282,9 @@
     .map { height: 128px; }
     .why p, .why ul { font-size: 16px; }
   }
+  .floor-colour { display: inline-flex; align-items: center; gap: 8px; }
+  .floor-colour input { width: 42px; height: 32px; padding: 2px; border: 1px solid var(--line); background: transparent; border-radius: 7px; cursor: pointer; }
+  .floor-pattern { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; }
   @media (prefers-reduced-motion: reduce) {
     .hint, .panel, .chip, .act, .tab-btn { transition: none; }
     .recbadge i { animation: none; }

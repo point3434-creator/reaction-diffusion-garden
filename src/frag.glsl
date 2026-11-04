@@ -18,6 +18,7 @@ uniform float uLutFlip;
 uniform float uBeat;
 uniform float uHue;
 uniform float uHeart;
+uniform int uQFloorGrid;
 uniform vec2 uTilt;
 uniform int uLight;        // 0 the room's own lights, 1 lamps over the dish, 2 a low sun going round
 uniform vec4 uLamp[3];     // a lamp: where it hangs over the dish (uv), its height in cells, and 1 if it is on
@@ -356,6 +357,28 @@ vec3 filterOf(vec4 c, float b) {
 float gridAt(vec2 p) {
   vec2 f = abs(fract(p * 0.2) - 0.5) * 5.0;
   return 1.0 - smoothstep(0.1, 0.45, min(f.x, f.y));
+}
+vec3 quantumFloor(vec2 p) {
+  float line = uQFloorGrid == 1 ? gridAt(p * 0.5) * 0.55 : 0.0;
+  return mix(uBg, mix(uBg + vec3(0.10), uBg * 0.72, uLightTheme), line);
+}
+vec3 quantumGlass(vec2 uv, vec3 floorColour) {
+  vec2 texel = 1.0 / uTexSize;
+  float l = smoothstep(0.3, 0.8, -texture(uField, uv - vec2(texel.x, 0.0)).a);
+  float r = smoothstep(0.3, 0.8, -texture(uField, uv + vec2(texel.x, 0.0)).a);
+  float d = smoothstep(0.3, 0.8, -texture(uField, uv - vec2(0.0, texel.y)).a);
+  float t = smoothstep(0.3, 0.8, -texture(uField, uv + vec2(0.0, texel.y)).a);
+  vec2 slope = vec2(l - r, d - t);
+  float bevel = clamp(length(slope), 0.0, 1.0);
+  vec3 normal = normalize(vec3(slope * 2.5, 1.0));
+  vec3 view = normalize(vec3(uTilt * 0.25, 1.0));
+  float fresnel = 0.04 + 0.96 * pow(1.0 - max(dot(normal, view), 0.0), 5.0);
+  vec3 through = quantumFloor(uv * uTexSize + normal.xy * 2.6);
+  through = mix(floorColour, through, 0.85) * vec3(0.88, 0.97, 1.0);
+  vec3 reflected = texture(uShellEnvironment, reflect(-view, normal)).rgb;
+  float edgeLight = 0.35 + 0.65 * max(dot(normal, normalize(vec3(-0.6, 0.8, 1.0))), 0.0);
+  return mix(through, reflected, fresnel + bevel * 0.13) +
+    vec3(0.65, 0.88, 1.0) * bevel * edgeLight * 0.48;
 }
 // Interpolate lattice slices so the heat rolls through the height of each dome.
 float lavaNoise(vec3 p) {
@@ -811,11 +834,14 @@ void main() {
       float rough = 0.7 + 0.3 * vnoise(gl_FragCoord.xy * 0.35);
       bg = mix(bg, mix(uBg * 2.2 + 0.05, uBg * 0.72, lt) * rough, scar);
     } else if (uHeart < 2.5) {
+      bg = quantumFloor(vUv * uTexSize) * (1.0 - shadow * 0.3);
       // a smooth potential shows as a bowl: deeper where the particle would rather be
       float pot = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);
       bg = mix(bg, mix(bg * 0.45 + vec3(0.02, 0.03, 0.05), bg * 0.8, lt), pot);
-      // walls: hard, smooth, pale
-      bg = mix(bg, mix(uBg * 2.6 + 0.12, uBg * 0.62, lt), scar);
+      // Clear slabs transmit the floor; their bevels reflect the studio light.
+      float wallShadow = smoothstep(0.3, 0.8, -texture(uField, vUv - vec2(1.5, -1.5) / uTexSize).a);
+      bg *= 1.0 - wallShadow * (1.0 - scar) * 0.2;
+      if (scar > 0.0) bg = mix(bg, quantumGlass(vUv, bg), scar);
     } else {
       // food: a pool of what the mould eats, in its own colour, deeper while there is more of it
       float fd = clamp(-c.a, 0.0, 0.45) / 0.45 * (1.0 - scar);

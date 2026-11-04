@@ -65,7 +65,11 @@ def splice(html):
     update = (SRC / 'song-library.js').read_text(encoding='utf-8')
     update += '\n' + (SRC / 'garden-update.js').read_text(encoding='utf-8')
     update += '\n' + (SRC / 'panel-art.js').read_text(encoding='utf-8')
-    block = '  // BEGIN GARDEN UPDATE\n' + current + '\n' + update + '\n  // END GARDEN UPDATE\n\n'
+    cgl = (SRC / 'cgl.js').read_text(encoding='utf-8')
+    cgl = '\n'.join(line for line in cgl.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))
+    audio_budget = (SRC / 'audio-render-budget.js').read_text(encoding='utf-8')
+    audio_budget = '\n'.join(line for line in audio_budget.splitlines() if not line.startswith("if (typeof module !== 'undefined') module.exports"))
+    block = '  // BEGIN GARDEN UPDATE\n' + audio_budget + '\n' + cgl + '\n' + current + '\n' + update + '\n  // END GARDEN UPDATE\n\n'
     marker = '  // ---- go ----'
     if html.count(marker) != 1:
         raise ValueError('Expected one application startup marker; refusing an ambiguous splice')

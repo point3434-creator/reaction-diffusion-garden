@@ -457,7 +457,14 @@
   }
   function beatTick() {
     var ac = music.actx, B = BEATS[beats.idx], st = 60 / B.bpm / 4;
-    while (beats.nextT < ac.currentTime + 0.16) {
+    // A late UI frame must not start a backlog of past notes all at once.
+    // Leave room for negative humanization offsets and keep the original beat grid.
+    var earliest = ac.currentTime + 0.035;
+    if (beats.nextT < earliest) {
+      var missed = Math.ceil((earliest - beats.nextT) / st);
+      beats.step += missed; beats.nextT += missed * st;
+    }
+    while (beats.nextT < ac.currentTime + 0.35) {
       scheduleStep(beats.step, beats.nextT);
       beats.step++;
       beats.nextT += st;
@@ -499,6 +506,9 @@
   }
   function pauseBeat() {
     if (!beats.on) return;
+    // Resume at the next audible step, not beyond the look-ahead queue we retire.
+    var st = 60 / BEATS[beats.idx].bpm / 4;
+    beats.step -= Math.min(beats.step, Math.max(0, Math.floor((beats.nextT - music.actx.currentTime) / st)));
     silenceBeat();
     beats.on = false; beats.paused = true;
     setMusicOn(false);
